@@ -1,0 +1,43 @@
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # Pacotes de teste sobem juntos; definido antes de "dotnet" para ficar com eles.
+      testing:
+        patterns:
+          - "xunit*"
+          - "NSubstitute"
+          - "Testcontainers.*"
+          - "Microsoft.NET.Test.Sdk"
+      # O .NET, o EF Core e o Npgsql saem juntos todo mês; sem agrupar, viram
+      # vários PRs que só fazem sentido mergeados na mesma versão.
+      dotnet:
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+          - "Npgsql.*"
+        exclude-patterns:
+          - "Microsoft.NET.Test.Sdk"
+
+  # Mantém as actions do CI (checkout, setup-dotnet, cache) atualizadas.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: chore
+      include: scope
