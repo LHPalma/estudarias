@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Estudarias.Domain/Estudarias.Domain.csproj" />
+    <Project Path="src/Estudarias.Application/Estudarias.Application.csproj" />
+    <Project Path="src/Estudarias.Infrastructure/Estudarias.Infrastructure.csproj" />
+  </Folder>
+</Solution>

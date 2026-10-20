@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Entidades, regras de negócio e motor (nota, desbloqueio, SM-2). Sem dependências. -->
+
+</Project>

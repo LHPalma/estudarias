@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Casos de uso, DTOs e abstrações (repositórios, relógio). Depende só do Domain. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Estudarias.Domain\Estudarias.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

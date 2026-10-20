@@ -1,0 +1,224 @@
+// Estudarias — schema alvo da v1
+
+Enum grupo_experimental {
+  controle
+  diagnostico
+}
+
+Enum status_topico {
+  bloqueado
+  disponivel
+  dominado
+}
+
+Enum dificuldade {
+  facil
+  medio
+  dificil
+}
+
+Enum origem_flashcard {
+  manual
+  gerado_por_erro
+}
+
+// ---------- Conteúdo (vem do seed) ----------
+
+Table topico {
+  id int [pk, increment]
+  nome varchar [not null]
+  slug varchar [not null, unique]
+}
+
+Table pre_requisito {
+  topico_id int [not null, ref: > topico.id, note: 'tópico que exige']
+  requisito_id int [not null, ref: > topico.id, note: 'tópico exigido']
+
+  indexes {
+    (topico_id, requisito_id) [pk]
+  }
+
+  Note: 'CHECK (topico_id <> requisito_id). Ciclos são barrados pelo validador do seed.'
+}
+
+Table tipo_erro {
+  id int [pk, increment]
+  codigo varchar [not null]
+  nome varchar [not null]
+  descricao text
+  feedback text [not null]
+  topico_id int [not null, ref: > topico.id]
+
+  indexes {
+    (topico_id, codigo) [unique]
+  }
+}
+
+Table licao {
+  id int [pk, increment]
+  topico_id int [not null, ref: > topico.id]
+  ordem int [not null]
+  titulo varchar [not null]
+  conteudo text [not null]
+
+  indexes {
+    (topico_id, ordem) [unique]
+  }
+}
+
+Table exercicio {
+  id int [pk, increment]
+  licao_id int [not null, ref: > licao.id]
+  enunciado text [not null]
+  dificuldade dificuldade [not null]
+}
+
+Table alternativa {
+  id int [pk, increment]
+  exercicio_id int [not null, ref: > exercicio.id]
+  texto text [not null]
+  correta boolean [not null]
+  tipo_erro_id int [null, ref: > tipo_erro.id, note: 'NULL se correta']
+
+  Note: '''
+    CHECK ((correta AND tipo_erro_id IS NULL) OR (NOT correta AND tipo_erro_id IS NOT NULL)).
+    Índice único parcial em (exercicio_id) WHERE correta = true: no máximo 1 correta por exercício.
+    "Pelo menos 1 correta" e "tipo_erro do mesmo tópico do exercício" ficam no validador do seed.
+  '''
+}
+
+// ---------- Aluno e progresso ----------
+
+Table aluno {
+  id int [pk, increment]
+  nome varchar [not null]
+  grupo_experimental grupo_experimental [not null]
+}
+
+Table aluno_topico {
+  aluno_id int [not null, ref: > aluno.id]
+  topico_id int [not null, ref: > topico.id]
+  status status_topico [not null, note: 'cache: pode ser recalculado a partir das tentativas']
+  desbloqueado_em timestamptz [null, note: 'fato gravado; uma vez preenchido, nunca volta a bloquear']
+
+  indexes {
+    (aluno_id, topico_id) [pk]
+  }
+}
+
+Table tentativa {
+  id int [pk, increment]
+  aluno_id int [not null, ref: > aluno.id]
+  exercicio_id int [not null, ref: > exercicio.id]
+  alternativa_id int [not null, ref: > alternativa.id]
+  tempo_resposta_seg int [null]
+  timestamp timestamptz [not null]
+
+  indexes {
+    (aluno_id, exercicio_id)
+  }
+}
+
+// ---------- Flashcards e revisão (SM-2) ----------
+
+Table flashcard {
+  id int [pk, increment]
+  topico_id int [not null, ref: > topico.id]
+  pergunta text [not null]
+  resposta text [not null]
+  origem origem_flashcard [not null]
+  tipo_erro_id int [null, ref: > tipo_erro.id, note: 'preenchido quando origem = gerado_por_erro']
+
+  Note: '''
+    Global por tipo_erro: um único flashcard gerado_por_erro por tipo_erro.
+    Índice único parcial em (tipo_erro_id) WHERE origem = 'gerado_por_erro'.
+    CHECK ((origem = 'gerado_por_erro') = (tipo_erro_id IS NOT NULL)).
+  '''
+}
+
+Table aluno_flashcard {
+  aluno_id int [not null, ref: > aluno.id]
+  flashcard_id int [not null, ref: > flashcard.id]
+  proxima_revisao timestamptz [not null]
+  repeticoes int [not null, default: 0, note: 'SM-2: acertos consecutivos; zera ao errar']
+  intervalo int [not null, note: 'em dias']
+  fator_facilidade "numeric(4,2)" [not null, default: 2.5, note: 'SM-2, inicia em 2.5, mínimo 1.3']
+  tentativa_origem_id int [null, ref: > tentativa.id, note: 'primeira tentativa que gerou este cartão para o aluno']
+
+  indexes {
+    (aluno_id, flashcard_id) [pk]
+    (aluno_id, proxima_revisao)
+  }
+}
+
+// ---------- Records: dados de exemplo (Frações) ----------
+
+Records topico(id, nome, slug) {
+  1, 'Equações do 1º grau', 'equacoes-1-grau'
+  2, 'Frações', 'fracoes'
+  3, 'Operações básicas', 'operacoes-basicas'
+  4, 'Porcentagem', 'porcentagem'
+}
+
+Records pre_requisito(topico_id, requisito_id) {
+  1, 2
+  2, 3
+  4, 2
+}
+
+Records tipo_erro(id, codigo, nome, feedback, topico_id) {
+  1, 'inverte_fracao', 'Inversão de numerador e denominador', 'O denominador indica em quantas partes iguais o todo foi dividido.', 2
+  2, 'usa_resto_como_todo', 'Usa o que sobrou como denominador', 'O denominador é sempre o total de partes iguais.', 2
+  3, 'soma_numeradores_e_denominadores', 'Soma numerador com numerador e denominador com denominador', 'Só dá para somar frações diretamente quando os denominadores são iguais.', 2
+  4, 'nao_converte_numerador', 'Muda o denominador mas esquece o numerador', 'Ao mudar o denominador, o numerador precisa ser multiplicado pelo mesmo fator.', 2
+  5, 'responde_o_complemento', 'Responde com a fração que sobrou', 'A pergunta é sobre as partes que Ana comeu, não sobre as que restaram.', 2
+  6, 'multiplica_em_vez_de_somar', 'Multiplica as frações em vez de somar', 'Somar e multiplicar frações são operações diferentes; aqui é preciso somar as partes.', 2
+}
+
+Records licao(id, topico_id, ordem, titulo, conteudo) {
+  1, 2, 1, 'O que é uma fração', 'Uma fração representa partes de um todo.'
+  2, 2, 2, 'Soma de frações com denominadores diferentes', 'Para somar 1/2 + 1/3, encontre um denominador comum.'
+}
+
+Records exercicio(id, licao_id, enunciado, dificuldade) {
+  1, 1, 'Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?', 'facil'
+  2, 2, 'Quanto é 1/2 + 1/3?', 'medio'
+}
+
+// tipo_erro_id vazio = NULL (alternativa correta)
+Records alternativa(id, exercicio_id, texto, correta, tipo_erro_id) {
+  1, 1, '3/8', true, null
+  2, 1, '8/3', false, 1
+  3, 1, '3/5', false, 2
+  4, 1, '5/8', false, 5
+  5, 2, '5/6', true, null
+  6, 2, '2/5', false, 3
+  7, 2, '2/6', false, 4
+  8, 2, '1/6', false, 6
+}
+
+// ---------- Records: estado de um aluno ----------
+
+Records aluno(id, nome, grupo_experimental) {
+  1, 'Ana', 'diagnostico'
+}
+
+Records aluno_topico(aluno_id, topico_id, status, desbloqueado_em) {
+  1, 3, 'dominado', '2026-10-07 10:00:00-03'
+  1, 2, 'disponivel', '2026-10-07 10:05:00-03'
+  1, 1, 'bloqueado', null
+  1, 4, 'bloqueado', null
+}
+
+Records tentativa(id, aluno_id, exercicio_id, alternativa_id, tempo_resposta_seg, timestamp) {
+  1, 1, 2, 6, 48, '2026-10-07 10:12:00-03'
+}
+
+Records flashcard(id, topico_id, pergunta, resposta, origem, tipo_erro_id) {
+  1, 2, 'Por que 1/2 + 1/3 não é 2/5?', 'Porque é preciso um denominador comum antes de somar os numeradores.', 'gerado_por_erro', 3
+  2, 2, 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
+}
+
+Records aluno_flashcard(aluno_id, flashcard_id, proxima_revisao, repeticoes, intervalo, fator_facilidade, tentativa_origem_id) {
+  1, 1, '2026-10-08 10:12:00-03', 0, 1, 2.5, 1
+}
