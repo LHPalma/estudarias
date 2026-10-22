@@ -37,5 +37,6 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      # Os passos de teste entram junto com o primeiro projeto de testes
-      # (um projeto por passo, para o vermelho apontar a camada).
+      # Um projeto de testes por passo, para o vermelho apontar a camada.
+      - name: Test Domain
+        run: dotnet test --project tests/Estudarias.Domain.UnitTests --no-build --configuration Release

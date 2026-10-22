@@ -4,4 +4,7 @@
     <Project Path="src/Estudarias.Application/Estudarias.Application.csproj" />
     <Project Path="src/Estudarias.Infrastructure/Estudarias.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Estudarias.Domain.UnitTests/Estudarias.Domain.UnitTests.csproj" />
+  </Folder>
 </Solution>
