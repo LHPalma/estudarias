@@ -1,0 +1,10 @@
+@Estudarias.Api_HostAddress = http://localhost:5007
+
+GET {{Estudarias.Api_HostAddress}}/health
+
+###
+
+GET {{Estudarias.Api_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
