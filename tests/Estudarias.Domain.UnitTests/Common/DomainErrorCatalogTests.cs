@@ -13,6 +13,12 @@ public partial class DomainErrorCatalogTests
         "student.name.tooLong",
         "student.group.invalid",
         "student.topic.locked",
+        "topic.name.required",
+        "topic.name.tooLong",
+        "topic.slug.required",
+        "topic.slug.invalid",
+        "topic.prerequisite.self",
+        "topic.prerequisite.duplicated",
     ];
 
     [GeneratedRegex(@"^[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*$")]
