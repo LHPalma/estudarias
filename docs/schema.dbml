@@ -20,8 +20,8 @@ Enum origem_flashcard {
 
 Table topico {
   id uuid [pk]
-  nome varchar [not null]
-  slug varchar [not null, unique]
+  nome "varchar(100)" [not null]
+  slug "varchar(100)" [not null, unique, note: 'minúsculas, dígitos e hífens entre grupos: ^[a-z0-9]+(-[a-z0-9]+)*$']
 }
 
 Table pre_requisito {
