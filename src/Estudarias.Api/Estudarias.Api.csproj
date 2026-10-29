@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- API REST consumida pelo app: controllers, links e composição das camadas (DI). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Estudarias.Application\Estudarias.Application.csproj" />
+    <ProjectReference Include="..\Estudarias.Infrastructure\Estudarias.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+  </ItemGroup>
+
+</Project>
