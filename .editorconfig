@@ -1,0 +1,5 @@
+root = true
+
+[*.cs]
+# Todo bloco de controle tem chaves, mesmo com uma única instrução (IDE0011).
+csharp_prefer_braces = true:error
