@@ -38,8 +38,14 @@ e `// Act & Assert` junta as duas quando a ação é a própria asserção
   `Assert.Equal("topic.name.required", exception.Code)`. Comparar com
   `TopicErrors.NameRequired` compararia o símbolo com ele mesmo e deixaria um
   erro de digitação passar.
-- `DomainErrorCatalogTests` fixa, por reflexão, a lista completa de códigos,
-  a unicidade e o formato `<área>.<conceito>.<invariante>` em minúsculas.
+- Cada agregado declara seus códigos em uma classe estática
+  `<Agregado>Errors`, na sua pasta, com constantes `public const string`
+  (`StudentErrors.NameRequired = "student.name.required"`).
+- `DomainErrorCatalogTests` varre o assembly do Domain atrás dessas classes e
+  fixa, por reflexão, a lista completa de códigos, a unicidade e o formato
+  `<área>.<conceito>.<invariante>`: três segmentos separados por ponto, cada
+  um começando com letra minúscula e só com letras, em camelCase quando há mais
+  de uma palavra (`student.name.tooLong`). Sem hífen, underscore nem número.
   Toda invariante nova quebra esse teste até o código ser registrado nele.
   É proposital.
 
