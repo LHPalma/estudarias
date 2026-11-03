@@ -7,7 +7,13 @@ namespace Estudarias.Domain.UnitTests.Common;
 public partial class DomainErrorCatalogTests
 {
     // Toda invariante nova quebra o teste até o código ser registrado aqui. É proposital.
-    private static readonly string[] RegisteredCodes = [];
+    private static readonly string[] RegisteredCodes =
+    [
+        "student.name.required",
+        "student.name.tooLong",
+        "student.group.invalid",
+        "student.topic.locked",
+    ];
 
     [GeneratedRegex(@"^[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*$")]
     private static partial Regex CodeFormat();
