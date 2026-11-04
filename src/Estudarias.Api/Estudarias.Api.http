@@ -1,4 +1,7 @@
 @Estudarias.Api_HostAddress = http://localhost:5007
+# Autenticação provisória: id de um aluno cadastrado.
+@StudentId = 00000000-0000-0000-0000-000000000000
+@TopicId = 00000000-0000-0000-0000-000000000000
 
 GET {{Estudarias.Api_HostAddress}}/health
 
@@ -6,5 +9,12 @@ GET {{Estudarias.Api_HostAddress}}/health
 
 GET {{Estudarias.Api_HostAddress}}/openapi/v1.json
 Accept: application/json
+
+###
+
+# Sem persistência, os repositórios em memória começam vazios: com o header, a resposta é 404; sem ele, 401.
+GET {{Estudarias.Api_HostAddress}}/topics/{{TopicId}}
+Accept: application/json
+X-Student-Id: {{StudentId}}
 
 ###

@@ -40,3 +40,9 @@ jobs:
       # Um projeto de testes por passo, para o vermelho apontar a camada.
       - name: Test Domain
         run: dotnet test --project tests/Estudarias.Domain.UnitTests --no-build --configuration Release
+
+      - name: Test Application
+        run: dotnet test --project tests/Estudarias.Application.UnitTests --no-build --configuration Release
+
+      - name: Test Api
+        run: dotnet test --project tests/Estudarias.Api.FunctionalTests --no-build --configuration Release

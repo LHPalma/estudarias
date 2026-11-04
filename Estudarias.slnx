@@ -7,5 +7,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Estudarias.Domain.UnitTests/Estudarias.Domain.UnitTests.csproj" />
+    <Project Path="tests/Estudarias.Application.UnitTests/Estudarias.Application.UnitTests.csproj" />
+    <Project Path="tests/Estudarias.Api.FunctionalTests/Estudarias.Api.FunctionalTests.csproj" />
   </Folder>
 </Solution>

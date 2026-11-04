@@ -10,7 +10,12 @@ vermelho apontar a camada.
 | `Estudarias.Domain.UnitTests` | entidades, invariantes, cálculo do SM-2 | nenhuma: sem banco, sem I/O, sem relógio real |
 | `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
 | `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
-| `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta | `WebApplicationFactory` + Testcontainers |
+| `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta, incluindo os links de ação | `WebApplicationFactory` + Testcontainers |
+
+Enquanto a persistência não existe, a Infrastructure registra repositórios em
+memória (`Persistence/InMemory`), e os testes funcionais os populam pela
+`EstudariasApiFactory`. Quando o EF Core entrar, os testes passam a usar
+PostgreSQL via Testcontainers.
 
 Os projetos entram conforme a camada correspondente nasce. A pasta de cada
 teste espelha a pasta da classe testada (`Domain/Common/BaseEntity.cs` →
@@ -65,6 +70,8 @@ para que a asserção seja exata.
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
+    dotnet test --project tests/Estudarias.Application.UnitTests
+    dotnet test --project tests/Estudarias.Api.FunctionalTests
 
 O `global.json` liga o `dotnet test` ao Microsoft.Testing.Platform, exigido
 pelo xUnit v3 no SDK do .NET 10.
