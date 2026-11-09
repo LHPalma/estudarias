@@ -3,6 +3,11 @@
   <!-- API REST consumida pelo app: controllers, links e composição das camadas (DI). -->
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Estudarias.Api.UnitTests" />
+    <InternalsVisibleTo Include="Estudarias.Api.FunctionalTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Estudarias.Application\Estudarias.Application.csproj" />
     <ProjectReference Include="..\Estudarias.Infrastructure\Estudarias.Infrastructure.csproj" />
   </ItemGroup>
