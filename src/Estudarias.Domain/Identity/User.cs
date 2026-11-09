@@ -10,6 +10,13 @@ public sealed class User : BaseEntity, IAggregateRoot
 {
     public const int MaxEmailLength = 254;
 
+    // Só o EF Core usa: ele não consegue ligar PasswordHash, que é uma propriedade complexa, a um parâmetro do construtor.
+    private User()
+    {
+        Email = null!;
+        PasswordHash = null!;
+    }
+
     private User(string email, PasswordHash passwordHash, UserRole role, Guid? studentId)
     {
         Email = email;
