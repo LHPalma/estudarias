@@ -42,3 +42,24 @@ dotnet ef database update --project src/Estudarias.Infrastructure
 ```
 
 Para gerar uma migration nova: `dotnet ef migrations add <Nome> --project src/Estudarias.Infrastructure --output-dir Persistence/Migrations`.
+
+## Senhas
+
+A senha é guardada com Argon2id, e o hash é derivado com um **pepper**: um segredo global, versionado, que fica fora do banco. Um
+dump do banco sozinho não permite ataque offline. Em desenvolvimento o pepper vem do `appsettings.Development.json` (exposto de
+propósito, com aviso no arquivo); nos demais ambientes a API **não sobe** sem a configuração abaixo.
+
+| Variável | Valor |
+|---|---|
+| `PasswordHashing__CurrentPepperVersion` | versão com que os hashes novos são derivados (`1`) |
+| `PasswordHashing__Peppers__1` | o pepper da versão 1: pelo menos 32 caracteres, por exemplo `openssl rand -base64 32` |
+
+Para rotacionar o pepper, acrescente a versão nova **sem tirar a antiga** (`PasswordHashing__Peppers__2`) e aponte
+`CurrentPepperVersion` para ela. Os hashes antigos continuam valendo, e `NeedsRehash` os acusa para o login refazê-los com o pepper
+novo (caso de uso do login, #39). Só remova o pepper antigo quando nenhum hash o usar mais:
+
+```sql
+SELECT password_pepper_version, count(*) FROM app_user GROUP BY 1;
+```
+
+Um hash cuja versão não está mais configurada **não** é tratado como senha errada: a verificação falha com erro de configuração.
