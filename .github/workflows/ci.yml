@@ -42,6 +42,9 @@ jobs:
       - name: Test Domain
         run: dotnet test --project tests/Estudarias.Domain.UnitTests --no-build --configuration Release
 
+      - name: Test Application
+        run: dotnet test --project tests/Estudarias.Application.UnitTests --no-build --configuration Release
+
       - name: Test Infrastructure (unit)
         run: dotnet test --project tests/Estudarias.Infrastructure.UnitTests --no-build --configuration Release
 
