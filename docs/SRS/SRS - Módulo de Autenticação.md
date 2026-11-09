@@ -1,6 +1,6 @@
 # SRS — Módulo de Autenticação (Cadastro, Login, Sessão e Grupo Experimental)
 
-**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46), casos de uso (#39, PR #47) e testes de fluxo contra o PostgreSQL real (#49, PR #51). Falta o access token JWT e a exigência de login na API (#40) e os endpoints REST (#41). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46), casos de uso (#39, PR #47) e testes de fluxo contra o PostgreSQL real (#49, PR #51). O access token JWT e a exigência de login na API (#40, PR #55) também têm PR aberto. Faltam os endpoints REST (#41). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -165,7 +165,9 @@ O login também refaz o hash quando ele foi derivado com um pepper que não é o
 
 ### RF-04: Emissão do access token
 
-`IAccessTokenIssuer.Issue(conta)` monta um JWT HS256 com as claims `sub` (id da conta), `email` e `role`, `Issuer` e `Audience` fixos, que expira em 15 minutos (`Jwt:AccessTokenMinutes`) a partir da emissão. Devolve também o instante de expiração, para o app renovar sem decodificar o JWT. **Implementação na #40.**
+`IAccessTokenIssuer.Issue(conta)` monta um JWT HS256 com as claims `sub` (id da conta), `email` e `role`, e nada mais de dado da conta (nunca a senha, o hash nem o pepper). O emissor e a audiência vêm da configuração (`Jwt:Issuer` e `Jwt:Audience`, padrão `Estudarias`), e o token expira em 15 minutos (`Jwt:AccessTokenMinutes`) a partir da emissão, medida pelo relógio injetado. Devolve também o instante de expiração, para o app renovar sem decodificar o JWT.
+
+Em cada requisição, o middleware confere **emissor, audiência, assinatura e validade**, com 30 segundos de tolerância de relógio, e aceita **só o algoritmo HS256**: um token assinado com outro algoritmo, mesmo com a chave certa, ou sem assinatura, é recusado. **Implementação na #40 (PR #55).**
 
 ### RF-05: Emissão e persistência do refresh token
 
@@ -193,7 +195,7 @@ Revoga o refresh token informado, o do dispositivo que está saindo. O access to
 
 ### RF-09: Login obrigatório em toda a API
 
-Toda requisição a qualquer endpoint exige um access token válido, exceto `register`, `login`, `refresh`, `logout` e `/health`. Um endpoint novo já nasce protegido (política de autorização padrão). Requisição sem token válido responde `401`. **Implementação na #40.**
+Toda requisição a qualquer endpoint exige um access token válido, exceto `register`, `login`, `refresh`, `logout` e `/health` (e o OpenAPI, só em Development). Um endpoint novo já nasce protegido: a política de autorização padrão exige usuário autenticado, e quem precisa ser aberto declara `AllowAnonymous` de propósito. Requisição sem token válido responde `401`, inclusive numa rota que não existe (a quem tem token, essa rota responde `404`), o que não revela quais rotas existem. **Implementação da política na #40 (PR #55); o `AllowAnonymous` dos endpoints de sessão, na #41.**
 
 ---
 
@@ -313,7 +315,7 @@ Todo aluno novo cai em `ExperimentalGroup:FallbackGroup`, sem sorteio. Quem já 
 
 ### FA-12: Requisição sem token, ou com token inválido ou vencido
 
-`401` em qualquer endpoint protegido (RF-09). O app responde renovando a sessão (RF-06) e repetindo o pedido.
+`401` em qualquer endpoint protegido (RF-09), com o desafio `Bearer` e, para um token vencido, dizendo que ele expirou. Vale também para token de outra chave, de outro emissor ou audiência, de outro algoritmo, sem assinatura, adulterado e para lixo no lugar do token. O app responde renovando a sessão (RF-06) e repetindo o pedido.
 
 ---
 
@@ -369,7 +371,9 @@ Os erros de domínio viram respostas com o código `identity.*` ou `student.*` e
 | `PasswordHashing__Peppers__N` | O pepper da versão N (pelo menos 32 caracteres) |
 | `ExperimentalGroup__RandomAssignment` | Flag do sorteio (padrão `true`) |
 | `ExperimentalGroup__FallbackGroup` | Grupo de todo aluno novo com o sorteio desligado (padrão `Diagnostic`) |
-| `Jwt__SigningKey` | Chave de assinatura do access token (#40) |
+| `Jwt__SigningKey` | Chave de assinatura do access token: pelo menos 32 caracteres. Sem ela a API não sobe |
+| `Jwt__Issuer` / `Jwt__Audience` | Emissor e audiência do token (padrão `Estudarias`; não podem ficar em branco) |
+| `Jwt__AccessTokenMinutes` | Vida do access token, em minutos (padrão 15; maior que zero) |
 
 ### 7.4 Fora do escopo
 
@@ -473,7 +477,7 @@ erDiagram
 | RF-01, RN-14, FA-01 a FA-03 | #39 (PR #47); persistência #37 (PR #44) | `RegisterStudentHandlerTests`; `UserRepositoryTests`; `EfUnitOfWorkTests`; `RegisterFlowTests` |
 | RF-02, RN-10, RN-11, FA-11 | #39 (PR #47) | `ExperimentalGroupAssignerTests`; `ExperimentalGroupOptionsTests`; `RegisterStudentHandlerTests`; `StudentRepositoryTests`; `RegisterFlowTests` |
 | RF-03, RN-01, RN-12, RN-15, FA-04 | #39 (PR #47) | `LoginHandlerTests`; `LoginFlowTests` |
-| RF-04, RF-09, FA-12 | #40 (pendente) | a definir na #40 |
+| RF-04, RF-09, FA-12 | #40 (PR #55) | `JwtAccessTokenIssuerTests`; `JwtOptionsTests`; `JwtCurrentUserTests`; `AuthenticationPipelineTests` |
 | RF-05, RN-05, RN-06 | #36 (PR #43), #39 (PR #47) | `RefreshTokenTests`; `RefreshTokenSecretTests`; `SessionTokensTests`; `RefreshTokenRepositoryTests`; `RegisterFlowTests` |
 | RF-06, RN-07, RN-08, FA-05 a FA-08 | #39 (PR #47) | `RefreshSessionHandlerTests`; `EfUnitOfWorkTests`; `SessionFlowTests` |
 | RF-07, RN-09, RN-16, FA-09 | #39 (PR #47) | `LogoutHandlerTests`; `SessionFlowTests` |
@@ -483,4 +487,4 @@ erDiagram
 
 ---
 
-*Documento gerado em 09-11-2026, referente às sub-issues da #35. Os requisitos marcados como pendentes (#40 e #41) valem para o módulo completo e serão revistos quando forem implementados.*
+*Documento gerado em 09-11-2026, referente às sub-issues da #35. Os requisitos marcados como pendentes (#41) valem para o módulo completo e serão revistos quando forem implementados.*
