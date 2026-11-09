@@ -78,6 +78,14 @@ bancos):
     ESTUDARIAS_TEST_POSTGRES="Host=localhost;Username=estudarias;Password=estudarias;Database=postgres" \
       dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
 
+### Testes de fluxo
+
+`Identity/*FlowTests` chamam os casos de uso como a API chamaria, ligados por `AddApplication` e `AddInfrastructure` sobre um
+PostgreSQL real, e conferem o banco direto, não só o que o caso de uso devolve. Só o emissor do access token é um dublê (o JWT é da
+API). O relógio é um `FakeTimeProvider` que o teste avança para vencer tokens sem esperar, e `BuildProvider` liga outro provedor ao
+mesmo banco com a configuração trocada, que é como um teste simula uma rotação de pepper ou a flag do sorteio virada. O nome de cada
+teste cita o requisito do SRS que ele prova (`docs/SRS/`).
+
 As migrations são aplicadas uma vez em um banco-modelo, e cada teste recebe um
 banco novo clonado dele. Regras que dependem do PostgreSQL de verdade (índice
 único, chave estrangeira, constraint, token de concorrência) são testadas aqui,
