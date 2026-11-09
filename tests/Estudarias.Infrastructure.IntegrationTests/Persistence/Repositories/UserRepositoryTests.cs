@@ -1,3 +1,4 @@
+using Estudarias.Application.Common;
 using Estudarias.Domain.Identity;
 using Estudarias.Infrastructure.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -110,13 +111,12 @@ public class UserRepositoryTests(PostgresFixture postgres) : DatabaseTests(postg
         scope.Users.Add(Samples.User(otherStudent, "ana@example.com"));
 
         // Act
-        var exception = await Assert.ThrowsAnyAsync<DbUpdateException>(
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(
             () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
 
         // Assert
-        var postgresError = Assert.IsType<PostgresException>(exception.InnerException);
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, postgresError.SqlState);
-        Assert.Equal("ux_app_user_email", postgresError.ConstraintName);
+        Assert.Equal("ux_app_user_email", exception.ConstraintName);
+        Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
     }
 
     [Fact(DisplayName = "Um aluno tem uma conta só")]
@@ -135,12 +135,11 @@ public class UserRepositoryTests(PostgresFixture postgres) : DatabaseTests(postg
         scope.Users.Add(Samples.User(student, "outra@example.com"));
 
         // Act
-        var exception = await Assert.ThrowsAnyAsync<DbUpdateException>(
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(
             () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
 
         // Assert
-        var postgresError = Assert.IsType<PostgresException>(exception.InnerException);
-        Assert.Equal("ux_app_user_student_id", postgresError.ConstraintName);
+        Assert.Equal("ux_app_user_student_id", exception.ConstraintName);
     }
 
     [Fact(DisplayName = "Uma conta não pode apontar para um aluno que não existe")]
@@ -171,7 +170,8 @@ public class UserRepositoryTests(PostgresFixture postgres) : DatabaseTests(postg
             scope.Users.Add(Samples.User(newStudent, "ana@example.com"));
 
             // Act
-            await Assert.ThrowsAnyAsync<DbUpdateException>(() => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
+            await Assert.ThrowsAsync<UniqueConstraintViolationException>(
+                () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
         }
 
         // Assert

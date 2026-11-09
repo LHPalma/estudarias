@@ -1,3 +1,4 @@
+using Estudarias.Application.Common;
 using Estudarias.Domain.Identity;
 using Estudarias.Infrastructure.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -63,12 +64,11 @@ public class RefreshTokenRepositoryTests(PostgresFixture postgres) : DatabaseTes
         scope.RefreshTokens.Add(Samples.Token(user.Id, Guid.CreateVersion7(), 'a'));
 
         // Act
-        var exception = await Assert.ThrowsAnyAsync<DbUpdateException>(
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(
             () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
 
         // Assert
-        var postgresError = Assert.IsType<PostgresException>(exception.InnerException);
-        Assert.Equal("ux_refresh_token_token_hash", postgresError.ConstraintName);
+        Assert.Equal("ux_refresh_token_token_hash", exception.ConstraintName);
     }
 
     [Fact(DisplayName = "A revogação e o sucessor ficam gravados")]

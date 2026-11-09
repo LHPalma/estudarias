@@ -61,6 +61,41 @@ public class EfUnitOfWorkTests(PostgresFixture postgres) : DatabaseTests(postgre
             () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
     }
 
+    [Fact(DisplayName = "Dois cadastros simultâneos com o mesmo e-mail: o que perde a corrida recebe a violação de unicidade da Application")]
+    public async Task SaveChanges_WithTwoConcurrentRegistrationsOfTheSameEmail_FailsTheLoserAsUniqueViolation()
+    {
+        // Arrange: as duas requisições já checaram que o e-mail estava livre, então só o índice único decide.
+        using var first = NewScope();
+        using var second = NewScope();
+        var firstStudent = Samples.Student();
+        var secondStudent = Samples.Student();
+        first.Students.Add(firstStudent);
+        first.Users.Add(Samples.User(firstStudent, "ana@example.com"));
+        second.Students.Add(secondStudent);
+        second.Users.Add(Samples.User(secondStudent, "ana@example.com"));
+
+        // Act
+        await first.UnitOfWork.SaveChangesAsync(CancellationToken.None);
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(
+            () => second.UnitOfWork.SaveChangesAsync(CancellationToken.None));
+
+        // Assert
+        Assert.Equal("ux_app_user_email", exception.ConstraintName);
+        Assert.Equal(1, await ScalarAsync<long>("SELECT count(*) FROM app_user"));
+    }
+
+    [Fact(DisplayName = "Uma violação que não é de unicidade segue como erro do banco, sem virar conflito")]
+    public async Task SaveChanges_WithAForeignKeyViolation_IsNotTranslated()
+    {
+        // Arrange
+        using var scope = NewScope();
+        scope.Users.Add(Samples.User(Samples.Student()));
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(
+            () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
+    }
+
     [Fact(DisplayName = "Gravar sem conflito não lança")]
     public async Task SaveChanges_WithoutConflict_Succeeds()
     {
