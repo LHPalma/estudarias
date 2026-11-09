@@ -27,3 +27,18 @@ dotnet run --project src/Estudarias.Api
 ```
 
 Com a API no ar, `GET http://localhost:5007/health` responde `Healthy`.
+
+## Banco de dados
+
+A API usa PostgreSQL. Em desenvolvimento a connection string vem do
+`appsettings.Development.json` (`localhost`, banco `estudarias`, usuário e senha
+`estudarias`); nos demais ambientes vem de `ConnectionStrings__Default`.
+
+As migrations não rodam sozinhas na subida. Para criar ou atualizar o banco:
+
+```bash
+dotnet tool install --global dotnet-ef
+dotnet ef database update --project src/Estudarias.Infrastructure
+```
+
+Para gerar uma migration nova: `dotnet ef migrations add <Nome> --project src/Estudarias.Infrastructure --output-dir Persistence/Migrations`.
