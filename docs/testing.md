@@ -67,14 +67,22 @@ para que a asserção seja exata.
 ## Testes funcionais da API
 
 `Estudarias.Api.FunctionalTests` sobe a API inteira (`WebApplicationFactory<Program>`) e chama por HTTP, com a composição e o
-pipeline reais. Só a chave do JWT é trocada, para o resultado não depender da chave de desenvolvimento.
+pipeline reais.
 
-Os endpoints que os testes chamam moram no próprio projeto (`TestEndpointsController`) e **não declaram `[Authorize]`**: quem os
-protege é a política padrão da API, e é isso que o teste prova. Tokens inválidos (outro algoritmo, sem assinatura, papel que o emissor
-nunca emitiria) são montados à mão em `CraftedTokens`, fora do emissor da API.
+- **Pipeline de autenticação** (`Security/`): usa `ApiFactory`, que só troca a chave do JWT e não toca o banco, então não precisa de contêiner.
+  Os endpoints que esses testes chamam moram no próprio projeto (`TestEndpointsController`) e **não declaram `[Authorize]`**: quem os protege é
+  a política padrão da API, e é isso que o teste prova. Tokens inválidos (outro algoritmo, sem assinatura, papel que o emissor nunca emitiria) são
+  montados à mão em `CraftedTokens`, fora do emissor da API.
+- **Endpoints de autenticação** (`Endpoints/`): usam `DatabaseApiFactory`, que liga a API a um banco de verdade, um por teste. A fixture é a mesma
+  dos testes de integração (`PostgresFixture`, PostgreSQL em contêiner), compartilhada **pelo arquivo** (`Compile Include` no `.csproj`) em vez de
+  copiada; por isso o namespace dela é o de origem. Precisam de Docker, ou de `ESTUDARIAS_TEST_POSTGRES`, como os de integração. O relógio é um
+  `FakeTimeProvider` que começa no instante real e fica parado: o middleware do JWT confere a validade pelo relógio de verdade, então o teste só
+  avança o tempo (para vencer um refresh token) quando não vai mais usar o access token.
 
-Os testes de autenticação não tocam o banco, então não precisam de contêiner. Os que passarem pelos endpoints de sessão (#41) vão
-precisar, e usam o PostgreSQL em contêiner como os de integração.
+Uma armadilha de `WebApplicationFactory`: a configuração que o teste troca precisa chegar **antes** do código do `Program`, porque o
+`AddInfrastructure` lê a connection string na hora do registro. `ConfigureAppConfiguration` da fábrica só é aplicado depois, então a API usaria o
+banco do `appsettings.Development.json` (o de desenvolvimento). Use `UseSetting`, como `DatabaseApiFactory` faz. Opções lidas depois (como as do JWT)
+enxergam as duas formas.
 
 ## Execução
 
