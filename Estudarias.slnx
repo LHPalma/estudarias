@@ -8,6 +8,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Estudarias.Domain.UnitTests/Estudarias.Domain.UnitTests.csproj" />
     <Project Path="tests/Estudarias.Application.UnitTests/Estudarias.Application.UnitTests.csproj" />
+    <Project Path="tests/Estudarias.Api.UnitTests/Estudarias.Api.UnitTests.csproj" />
     <Project Path="tests/Estudarias.Infrastructure.UnitTests/Estudarias.Infrastructure.UnitTests.csproj" />
     <Project Path="tests/Estudarias.Infrastructure.IntegrationTests/Estudarias.Infrastructure.IntegrationTests.csproj" />
   </Folder>
