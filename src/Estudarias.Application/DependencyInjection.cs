@@ -13,6 +13,7 @@ public static class DependencyInjection
 
         services.AddScoped<RegisterStudentHandler>();
         services.AddScoped<LoginHandler>();
+        services.AddScoped<RefreshSessionHandler>();
 
         return services;
     }
