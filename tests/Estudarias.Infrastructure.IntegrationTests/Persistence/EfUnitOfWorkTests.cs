@@ -1,0 +1,75 @@
+using Estudarias.Application.Common;
+using Estudarias.Domain.Identity;
+using Estudarias.Infrastructure.IntegrationTests.Support;
+
+namespace Estudarias.Infrastructure.IntegrationTests.Persistence;
+
+[Collection(PostgresCollection.Name)]
+public class EfUnitOfWorkTests(PostgresFixture postgres) : DatabaseTests(postgres)
+{
+    // O provider InMemory ignora o token de concorrência: só um PostgreSQL de verdade prova esta regra.
+    [Fact(DisplayName = "De duas revogações simultâneas do mesmo token, só a primeira vence")]
+    public async Task SaveChanges_WithTwoConcurrentRevocations_FailsTheSecond()
+    {
+        // Arrange
+        var user = await SeedUserAsync();
+        using (var seeding = NewScope())
+        {
+            seeding.RefreshTokens.Add(Samples.Token(user.Id, Guid.CreateVersion7(), 'a'));
+            await seeding.UnitOfWork.SaveChangesAsync(CancellationToken.None);
+        }
+
+        using var first = NewScope();
+        using var second = NewScope();
+        var firstCopy = await first.RefreshTokens.FindByHashAsync(Samples.TokenHash('a'), CancellationToken.None);
+        var secondCopy = await second.RefreshTokens.FindByHashAsync(Samples.TokenHash('a'), CancellationToken.None);
+        var firstRevocation = Samples.Now.AddMinutes(1);
+
+        firstCopy!.Revoke(firstRevocation);
+        secondCopy!.Revoke(Samples.Now.AddMinutes(2));
+
+        // Act
+        await first.UnitOfWork.SaveChangesAsync(CancellationToken.None);
+        var exception = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => second.UnitOfWork.SaveChangesAsync(CancellationToken.None));
+
+        // Assert
+        Assert.NotNull(exception.InnerException);
+        using var reading = NewScope();
+        var stored = await reading.RefreshTokens.FindByHashAsync(Samples.TokenHash('a'), CancellationToken.None);
+        Assert.Equal(firstRevocation, stored!.RevokedAt);
+    }
+
+    [Fact(DisplayName = "A revogação de um token já revogado por outra requisição falha como conflito, não como erro de banco")]
+    public async Task SaveChanges_WhenTheTokenWasRevokedMeanwhile_ThrowsConcurrencyConflict()
+    {
+        // Arrange
+        var user = await SeedUserAsync();
+        using (var seeding = NewScope())
+        {
+            seeding.RefreshTokens.Add(Samples.Token(user.Id, Guid.CreateVersion7(), 'a'));
+            await seeding.UnitOfWork.SaveChangesAsync(CancellationToken.None);
+        }
+
+        using var scope = NewScope();
+        var token = await scope.RefreshTokens.FindByHashAsync(Samples.TokenHash('a'), CancellationToken.None);
+        token!.Revoke(Samples.Now.AddMinutes(2));
+        await ExecuteAsync($"UPDATE refresh_token SET revoked_at = now() WHERE id = '{token.Id}'");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => scope.UnitOfWork.SaveChangesAsync(CancellationToken.None));
+    }
+
+    [Fact(DisplayName = "Gravar sem conflito não lança")]
+    public async Task SaveChanges_WithoutConflict_Succeeds()
+    {
+        // Act
+        var user = await SeedUserAsync();
+
+        // Assert
+        using var scope = NewScope();
+        Assert.NotNull(await scope.Users.FindByIdAsync(user.Id, CancellationToken.None));
+        Assert.Equal(UserRole.Student, user.Role);
+    }
+}
