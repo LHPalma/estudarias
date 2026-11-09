@@ -77,3 +77,26 @@ flag de configuração, para ligar e desligar sem mudar código:
 Desligue o sorteio no período em que o experimento ainda não começou ou já terminou. A flag só vale para cadastros novos: quem já
 tem grupo não muda. Um valor de `FallbackGroup` que não existe derruba a subida. Os valores do `appsettings.json` também
 valem como padrão, e uma configuração em arquivo que recarrega vale na próxima chamada, sem reiniciar.
+
+## Autenticação
+
+Toda a API exige login: uma requisição sem um access token válido recebe `401`, inclusive numa rota que não existe. Ficam abertos só o
+`GET /health`, os endpoints de sessão (cadastro, login, renovação e logout) e, em Development, o OpenAPI. Um endpoint novo já nasce
+protegido; quem precisa ser aberto declara `[AllowAnonymous]` de propósito.
+
+O access token é um JWT HS256 de 15 minutos, enviado em `Authorization: Bearer <token>`, com as claims `sub` (id da conta), `email` e `role`.
+A API só aceita o algoritmo HS256 e confere emissor, audiência, assinatura e validade, com 30 segundos de tolerância de relógio.
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `Jwt__SigningKey` | nenhum | a chave que assina e confere o token: pelo menos 32 caracteres, por exemplo `openssl rand -base64 32` |
+| `Jwt__Issuer` | `Estudarias` | o emissor do token |
+| `Jwt__Audience` | `Estudarias` | a audiência do token |
+| `Jwt__AccessTokenMinutes` | `15` | a vida do access token, em minutos (maior que zero) |
+
+Sem a chave, com uma chave curta, com a vida do token zerada ou com emissor ou audiência em branco, a API **não sobe**. Em desenvolvimento a
+chave vem do `appsettings.Development.json`, exposta de propósito e com aviso no arquivo.
+
+A chave é o segredo mais sensível do módulo: com ela se forja o token de qualquer aluno. Trocá-la derruba só os access tokens em circulação
+(no máximo 15 minutos de sessão): os refresh tokens ficam no banco e continuam valendo, então o app renova a sessão sozinho e recebe um token
+assinado com a chave nova.
