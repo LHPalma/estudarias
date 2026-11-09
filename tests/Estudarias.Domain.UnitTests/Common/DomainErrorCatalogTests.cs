@@ -19,6 +19,18 @@ public partial class DomainErrorCatalogTests
         "topic.slug.invalid",
         "topic.prerequisite.self",
         "topic.prerequisite.duplicated",
+        "identity.credentials.invalid",
+        "identity.email.invalid",
+        "identity.email.taken",
+        "identity.passwordHash.invalid",
+        "identity.password.noDigit",
+        "identity.password.noLowercase",
+        "identity.password.noSpecial",
+        "identity.password.noUppercase",
+        "identity.password.tooLong",
+        "identity.password.tooShort",
+        "identity.refreshToken.alreadyRevoked",
+        "identity.refreshToken.invalid",
     ];
 
     [GeneratedRegex(@"^[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*$")]
