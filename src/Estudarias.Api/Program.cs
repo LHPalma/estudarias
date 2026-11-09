@@ -29,3 +29,6 @@ app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+// Visível aos testes funcionais, que sobem a API inteira com o WebApplicationFactory.
+public partial class Program;
