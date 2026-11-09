@@ -63,3 +63,17 @@ SELECT password_pepper_version, count(*) FROM app_user GROUP BY 1;
 ```
 
 Um hash cuja versão não está mais configurada **não** é tratado como senha errada: a verificação falha com erro de configuração.
+
+## Grupo experimental
+
+Todo aluno que se cadastra entra em um dos dois grupos do experimento (`Control` ou `Diagnostic`). O sorteio fica atrás de uma
+flag de configuração, para ligar e desligar sem mudar código:
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `ExperimentalGroup__RandomAssignment` | `true` | ligada, sorteia 50/50 entre controle e diagnóstico; desligada, não sorteia |
+| `ExperimentalGroup__FallbackGroup` | `Diagnostic` | o grupo de todo aluno novo enquanto o sorteio está desligado (`Control` ou `Diagnostic`) |
+
+Desligue o sorteio no período em que o experimento ainda não começou ou já terminou. A flag só vale para cadastros novos: quem já
+tem grupo não muda. Um valor de `FallbackGroup` que não existe derruba a subida. Os valores do `appsettings.json` também
+valem como padrão, e uma configuração em arquivo que recarrega vale na próxima chamada, sem reiniciar.
