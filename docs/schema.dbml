@@ -1,8 +1,15 @@
 // Estudarias — schema alvo da v1
+//
+// Nomes de tabelas e colunas em inglês (snake_case, no singular). As tabelas de identidade (student, app_user e refresh_token) já
+// estão em inglês e batem com a migration; as demais, ainda em português, passam para o inglês quando forem mapeadas (#42).
 
-Enum grupo_experimental {
-  controle
-  diagnostico
+Enum experimental_group {
+  control
+  diagnostic
+}
+
+Enum user_role {
+  student
 }
 
 Enum dificuldade {
@@ -81,17 +88,56 @@ Table alternativa {
   '''
 }
 
+// ---------- Identidade (autenticação) ----------
+
+Table app_user {
+  id uuid [pk]
+  email "varchar(254)" [not null, unique, note: 'aparado e em minúsculas; é o que a conta usa para entrar. Índice ux_app_user_email']
+  password_hash text [not null, note: 'texto PHC do Argon2id; o pepper não aparece nele']
+  password_pepper_version int [not null, note: 'versão do pepper que derivou o hash; o login refaz o hash se não for a corrente']
+  role user_role [not null, note: 'só student por ora']
+  student_id uuid [null, unique, ref: - student.id, note: 'uma conta por aluno. Índice ux_app_user_student_id. Nulo para papéis futuros sem aluno. ON DELETE RESTRICT']
+  is_active boolean [not null, note: 'conta desabilitada não entra nem renova a sessão']
+
+  Note: '''
+    A conta de acesso, separada do aluno de propósito. A tabela se chama app_user porque user é palavra reservada do PostgreSQL.
+    Constraint ck_app_user_role: CHECK (role IN ('student')).
+  '''
+}
+
+Table refresh_token {
+  id uuid [pk]
+  user_id uuid [not null, ref: > app_user.id, note: 'ON DELETE CASCADE: sem a conta, o token não tem sentido']
+  family_id uuid [not null, note: 'todos os tokens que descendem de um login']
+  token_hash "char(64)" [not null, unique, note: 'SHA-256 em hexadecimal do token cru; o valor cru nunca é guardado. Índice ux_refresh_token_token_hash']
+  expires_at timestamptz [not null, note: 'emissão + 30 dias']
+  revoked_at timestamptz [null, note: 'nulo enquanto ativo. É o token de concorrência: de duas renovações simultâneas do mesmo token, só o UPDATE da primeira acha a linha não revogada']
+  replaced_by_token_id uuid [null, note: 'o sucessor, quando a revogação veio de rotação; nulo quando veio de logout ou de reuso']
+
+  indexes {
+    user_id [name: 'ix_refresh_token_user_id']
+    family_id [name: 'ix_refresh_token_family_id']
+  }
+
+  Note: 'Uso único e rotativo, com família: um token já revogado que reaparece revoga a família inteira.'
+}
+
 // ---------- Aluno e progresso ----------
 
-Table aluno {
+Table student {
   id uuid [pk]
-  nome varchar [not null]
-  grupo_experimental grupo_experimental [not null]
+  name "varchar(100)" [not null]
+  experimental_group experimental_group [not null, note: 'gravado em minúsculas (control, diagnostic); fixado no cadastro e nunca muda']
+
+  Note: '''
+    Perfil de estudo: quem estuda e é medido no experimento. Não guarda e-mail nem senha (isso é da conta, app_user).
+    Constraint ck_student_experimental_group: CHECK (experimental_group IN ('control', 'diagnostic')).
+  '''
 }
 
 Table aluno_topico {
   id uuid [pk]
-  aluno_id uuid [not null, ref: > aluno.id]
+  aluno_id uuid [not null, ref: > student.id]
   topico_id uuid [not null, ref: > topico.id]
   desbloqueado_em timestamptz [not null, note: 'fato gravado; uma vez preenchido, nunca volta a bloquear']
   dominado_em timestamptz [null, note: 'primeira vez que o aluno dominou o tópico; null = disponível']
@@ -108,7 +154,7 @@ Table aluno_topico {
 
 Table tentativa {
   id uuid [pk]
-  aluno_id uuid [not null, ref: > aluno.id]
+  aluno_id uuid [not null, ref: > student.id]
   exercicio_id uuid [not null, ref: > exercicio.id]
   alternativa_id uuid [not null, ref: > alternativa.id]
   tempo_resposta_seg int [null]
@@ -137,7 +183,7 @@ Table flashcard {
 }
 
 Table aluno_flashcard {
-  aluno_id uuid [not null, ref: > aluno.id]
+  aluno_id uuid [not null, ref: > student.id]
   flashcard_id uuid [not null, ref: > flashcard.id]
   proxima_revisao timestamptz [not null]
   repeticoes int [not null, default: 0, note: 'SM-2: acertos consecutivos; zera ao errar']
@@ -199,8 +245,17 @@ Records alternativa(id, exercicio_id, texto, correta, tipo_erro_id) {
 
 // ---------- Records: estado de um aluno ----------
 
-Records aluno(id, nome, grupo_experimental) {
-  '0192f0c4-0006-7000-8000-000000000001', 'Ana', 'diagnostico'
+Records student(id, name, experimental_group) {
+  '0192f0c4-0006-7000-8000-000000000001', 'Ana', 'diagnostic'
+}
+
+Records app_user(id, email, password_hash, password_pepper_version, role, student_id, is_active) {
+  '0192f0c4-000a-7000-8000-000000000001', 'ana@example.com', '$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA', 1, 'student', '0192f0c4-0006-7000-8000-000000000001', true
+}
+
+Records refresh_token(id, user_id, family_id, token_hash, expires_at, revoked_at, replaced_by_token_id) {
+  '0192f0c4-000b-7000-8000-000000000001', '0192f0c4-000a-7000-8000-000000000001', '0192f0c4-000c-7000-8000-000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '2026-11-06 10:00:00-03', '2026-10-07 10:20:00-03', '0192f0c4-000b-7000-8000-000000000002'
+  '0192f0c4-000b-7000-8000-000000000002', '0192f0c4-000a-7000-8000-000000000001', '0192f0c4-000c-7000-8000-000000000001', '0000000000000000000000000000000000000000000000000000000000000002', '2026-11-06 10:20:00-03', null, null
 }
 
 Records aluno_topico(id, aluno_id, topico_id, desbloqueado_em, dominado_em) {
