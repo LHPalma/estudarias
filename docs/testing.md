@@ -65,6 +65,20 @@ para que a asserção seja exata.
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
+    dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
+
+Os testes de integração sobem um PostgreSQL em contêiner (Testcontainers),
+então precisam de Docker. Onde não há Docker, `ESTUDARIAS_TEST_POSTGRES` aponta
+para um servidor existente (uma connection string com permissão de criar
+bancos):
+
+    ESTUDARIAS_TEST_POSTGRES="Host=localhost;Username=estudarias;Password=estudarias;Database=postgres" \
+      dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
+
+As migrations são aplicadas uma vez em um banco-modelo, e cada teste recebe um
+banco novo clonado dele. Regras que dependem do PostgreSQL de verdade (índice
+único, chave estrangeira, constraint, token de concorrência) são testadas aqui,
+nunca com o provider InMemory, que ignora todas elas.
 
 O `global.json` liga o `dotnet test` ao Microsoft.Testing.Platform, exigido
 pelo xUnit v3 no SDK do .NET 10.
