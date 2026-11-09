@@ -1,6 +1,6 @@
 # SRS — Módulo de Autenticação (Cadastro, Login, Sessão e Grupo Experimental)
 
-**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46) e casos de uso (#39, PR #47). Falta o access token JWT e a exigência de login na API (#40) e os endpoints REST (#41). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46), casos de uso (#39, PR #47) e testes de fluxo contra o PostgreSQL real (#49, PR #51). Falta o access token JWT e a exigência de login na API (#40) e os endpoints REST (#41). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -470,16 +470,16 @@ erDiagram
 
 | Requisito | Implementação | Testes |
 |---|---|---|
-| RF-01, RN-14, FA-01 a FA-03 | #39 (PR #47); persistência #37 (PR #44) | `RegisterStudentHandlerTests`; `UserRepositoryTests`; `EfUnitOfWorkTests` |
-| RF-02, RN-10, RN-11, FA-11 | #39 (PR #47) | `ExperimentalGroupAssignerTests`; `ExperimentalGroupOptionsTests`; `RegisterStudentHandlerTests`; `StudentRepositoryTests` |
-| RF-03, RN-01, RN-12, RN-15, FA-04 | #39 (PR #47) | `LoginHandlerTests` |
+| RF-01, RN-14, FA-01 a FA-03 | #39 (PR #47); persistência #37 (PR #44) | `RegisterStudentHandlerTests`; `UserRepositoryTests`; `EfUnitOfWorkTests`; `RegisterFlowTests` |
+| RF-02, RN-10, RN-11, FA-11 | #39 (PR #47) | `ExperimentalGroupAssignerTests`; `ExperimentalGroupOptionsTests`; `RegisterStudentHandlerTests`; `StudentRepositoryTests`; `RegisterFlowTests` |
+| RF-03, RN-01, RN-12, RN-15, FA-04 | #39 (PR #47) | `LoginHandlerTests`; `LoginFlowTests` |
 | RF-04, RF-09, FA-12 | #40 (pendente) | a definir na #40 |
-| RF-05, RN-05, RN-06 | #36 (PR #43), #39 (PR #47) | `RefreshTokenTests`; `RefreshTokenSecretTests`; `SessionTokensTests`; `RefreshTokenRepositoryTests` |
-| RF-06, RN-07, RN-08, FA-05 a FA-08 | #39 (PR #47) | `RefreshSessionHandlerTests`; `EfUnitOfWorkTests` |
-| RF-07, RN-09, RN-16, FA-09 | #39 (PR #47) | `LogoutHandlerTests` |
-| RF-08, RN-03, RN-04, RN-13, FA-10 | #36 (PR #43), #38 (PR #46) | `PasswordTests`; `PasswordHashTests`; `Argon2PasswordHasherTests`; `PasswordHashingOptionsTests` |
+| RF-05, RN-05, RN-06 | #36 (PR #43), #39 (PR #47) | `RefreshTokenTests`; `RefreshTokenSecretTests`; `SessionTokensTests`; `RefreshTokenRepositoryTests`; `RegisterFlowTests` |
+| RF-06, RN-07, RN-08, FA-05 a FA-08 | #39 (PR #47) | `RefreshSessionHandlerTests`; `EfUnitOfWorkTests`; `SessionFlowTests` |
+| RF-07, RN-09, RN-16, FA-09 | #39 (PR #47) | `LogoutHandlerTests`; `SessionFlowTests` |
+| RF-08, RN-03, RN-04, RN-13, FA-10 | #36 (PR #43), #38 (PR #46) | `PasswordTests`; `PasswordHashTests`; `Argon2PasswordHasherTests`; `PasswordHashingOptionsTests`; `RegisterFlowTests`; `LoginFlowTests` |
 | Endpoints e códigos HTTP (Seção 8.3) | #41 (pendente) | a definir na #41 |
-| Fluxo de ponta a ponta contra o PostgreSQL real (RF-01 a RF-08) | #49 | `AuthenticationFlowTests` (#49) |
+| Fluxo de ponta a ponta contra o PostgreSQL real, num contêiner (RF-01 a RF-08) | #49 (PR #51) | `RegisterFlowTests`; `LoginFlowTests`; `SessionFlowTests`: cada teste cita no nome o requisito que prova |
 
 ---
 
