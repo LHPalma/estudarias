@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
 
         services.AddScoped<RegisterStudentHandler>();
+        services.AddScoped<LoginHandler>();
 
         return services;
     }
