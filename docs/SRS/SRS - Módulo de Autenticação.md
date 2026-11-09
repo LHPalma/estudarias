@@ -1,6 +1,6 @@
 # SRS — Módulo de Autenticação (Cadastro, Login, Sessão e Grupo Experimental)
 
-**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46), casos de uso (#39, PR #47) e testes de fluxo contra o PostgreSQL real (#49, PR #51). O access token JWT e a exigência de login na API (#40, PR #55) também têm PR aberto. Faltam os endpoints REST (#41). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Já tem PR aberto: agregado de identidade (#36, PR #43), persistência (#37, PR #44), hash de senha (#38, PR #46), casos de uso (#39, PR #47) e testes de fluxo contra o PostgreSQL real (#49, PR #51). O access token JWT e a exigência de login na API (#40, PR #55) e os endpoints REST (#41, PR #56) também têm PR aberto: todos os requisitos têm implementação em revisão. Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -142,7 +142,7 @@ sequenceDiagram
 
 ### RF-01: Cadastro do aluno
 
-**Endpoint:** `POST /auth/register` (previsto na #41). **Caso de uso:** `RegisterStudent`.
+**Endpoint:** `POST /auth/register` (#41, PR #56). **Caso de uso:** `RegisterStudent`.
 
 Recebe `name`, `email` e `password`. Normaliza o e-mail (RN-02), valida a política da senha (RN-03), recusa e-mail já cadastrado (FA-01), atribui o grupo experimental (RF-02), deriva o hash da senha (RF-08) e cria, **numa gravação só**, o aluno, a conta ligada a ele (`StudentId`) e o refresh token da primeira sessão (RN-14). Devolve uma sessão aberta: o aluno já entra logado, sem passar pelo login (RF-03). A resposta é `201 Created`.
 
@@ -157,7 +157,7 @@ A flag é lida a cada cadastro, então virar o valor vale na chamada seguinte qu
 
 ### RF-03: Login
 
-**Endpoint:** `POST /auth/login` (previsto na #41). **Caso de uso:** `Login`.
+**Endpoint:** `POST /auth/login` (#41, PR #56). **Caso de uso:** `Login`.
 
 Recebe `email` e `password`. Se a conta existir, estiver ativa e a senha conferir, emite um access token (RF-04) e um refresh token novo, numa família nova (RF-05), e devolve `accessToken`, `accessTokenExpiresAt`, `refreshToken` e a conta. Qualquer outra situação falha com `identity.credentials.invalid`, sem dizer qual parte estava errada (RN-01).
 
@@ -175,13 +175,13 @@ A cada cadastro, login e renovação, um refresh token novo é gerado: 32 bytes 
 
 ### RF-06: Renovação da sessão (rotação)
 
-**Endpoint:** `POST /auth/refresh` (previsto na #41). **Caso de uso:** `RefreshSession`.
+**Endpoint:** `POST /auth/refresh` (#41, PR #56). **Caso de uso:** `RefreshSession`.
 
 Recebe o refresh token cru e o troca por um par novo. O token recebido é **sempre revogado**, mesmo que ainda não tivesse vencido, e o sucessor nasce na mesma família, apontado por `ReplacedByTokenId`. Cada uso abre uma janela nova de 30 dias, então uma sessão ativa não acaba. Token desconhecido, vencido, revogado ou de conta desabilitada falha com `identity.refreshToken.invalid` (RN-06, RN-07, FA-05 a FA-08).
 
 ### RF-07: Logout
 
-**Endpoint:** `POST /auth/logout` (previsto na #41). **Caso de uso:** `Logout`.
+**Endpoint:** `POST /auth/logout` (#41, PR #56). **Caso de uso:** `Logout`.
 
 Revoga o refresh token informado, o do dispositivo que está saindo. O access token já emitido vale até expirar (RN-09). Responde `204 No Content`, também para um token desconhecido, vencido ou já revogado (RN-16).
 
@@ -195,7 +195,7 @@ Revoga o refresh token informado, o do dispositivo que está saindo. O access to
 
 ### RF-09: Login obrigatório em toda a API
 
-Toda requisição a qualquer endpoint exige um access token válido, exceto `register`, `login`, `refresh`, `logout` e `/health` (e o OpenAPI, só em Development). Um endpoint novo já nasce protegido: a política de autorização padrão exige usuário autenticado, e quem precisa ser aberto declara `AllowAnonymous` de propósito. Requisição sem token válido responde `401`, inclusive numa rota que não existe (a quem tem token, essa rota responde `404`), o que não revela quais rotas existem. **Implementação da política na #40 (PR #55); o `AllowAnonymous` dos endpoints de sessão, na #41.**
+Toda requisição a qualquer endpoint exige um access token válido, exceto `register`, `login`, `refresh`, `logout` e `/health` (e o OpenAPI, só em Development). Um endpoint novo já nasce protegido: a política de autorização padrão exige usuário autenticado, e quem precisa ser aberto declara `AllowAnonymous` de propósito. Requisição sem token válido responde `401`, inclusive numa rota que não existe (a quem tem token, essa rota responde `404`), o que não revela quais rotas existem. **Implementação da política na #40 (PR #55); o `AllowAnonymous` dos endpoints de sessão, na #41 (PR #56).**
 
 ---
 
@@ -456,7 +456,7 @@ erDiagram
 
 ### 8.3 Catálogo de erros
 
-| Código | Quando | Resposta prevista (#41) |
+| Código | Quando | Resposta HTTP (#41) |
 |---|---|---|
 | `identity.credentials.invalid` | Credenciais inválidas (RN-01) | 401 |
 | `identity.refreshToken.invalid` | Refresh token desconhecido, vencido, revogado, de conta desabilitada, ou que perdeu a corrida | 401 |
@@ -465,7 +465,7 @@ erDiagram
 | `identity.email.taken` | E-mail já cadastrado, inclusive na corrida | 409 |
 | `identity.password.tooShort` / `tooLong` | Menos de 8 ou mais de 128 caracteres | 400 |
 | `identity.password.noUppercase` / `noLowercase` / `noDigit` / `noSpecial` | Falta uma classe de caractere | 400 |
-| `identity.passwordHash.invalid` | Hash que não é PHC ou versão de pepper menor que 1 (defeito interno) | 500 |
+| `identity.passwordHash.invalid` | Hash que não é PHC ou versão de pepper menor que 1: um defeito interno que o cliente não consegue provocar, porque o hash nasce no servidor | 400 (é uma exceção de validação) |
 | `student.name.required` / `student.name.tooLong` | Nome vazio ou com mais de 100 caracteres | 400 |
 
 ---
@@ -482,9 +482,9 @@ erDiagram
 | RF-06, RN-07, RN-08, FA-05 a FA-08 | #39 (PR #47) | `RefreshSessionHandlerTests`; `EfUnitOfWorkTests`; `SessionFlowTests` |
 | RF-07, RN-09, RN-16, FA-09 | #39 (PR #47) | `LogoutHandlerTests`; `SessionFlowTests` |
 | RF-08, RN-03, RN-04, RN-13, FA-10 | #36 (PR #43), #38 (PR #46) | `PasswordTests`; `PasswordHashTests`; `Argon2PasswordHasherTests`; `PasswordHashingOptionsTests`; `RegisterFlowTests`; `LoginFlowTests` |
-| Endpoints e códigos HTTP (Seção 8.3) | #41 (pendente) | a definir na #41 |
+| Endpoints e códigos HTTP (Seção 8.3), RNF-06 | #41 (PR #56) | `RegisterEndpointTests`; `LoginEndpointTests`; `SessionEndpointTests`; `UnexpectedErrorEndpointTests`; `DomainExceptionHandlerTests` |
 | Fluxo de ponta a ponta contra o PostgreSQL real, num contêiner (RF-01 a RF-08) | #49 (PR #51) | `RegisterFlowTests`; `LoginFlowTests`; `SessionFlowTests`: cada teste cita no nome o requisito que prova |
 
 ---
 
-*Documento gerado em 09-11-2026, referente às sub-issues da #35. Os requisitos marcados como pendentes (#41) valem para o módulo completo e serão revistos quando forem implementados.*
+*Documento gerado em 09-11-2026, referente às sub-issues da #35. Os requisitos valem para o módulo completo. As seções que dependem de PRs ainda em revisão serão revistas se a implementação mudar na revisão.*
