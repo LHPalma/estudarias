@@ -100,3 +100,40 @@ chave vem do `appsettings.Development.json`, exposta de propósito e com aviso n
 A chave é o segredo mais sensível do módulo: com ela se forja o token de qualquer aluno. Trocá-la derruba só os access tokens em circulação
 (no máximo 15 minutos de sessão): os refresh tokens ficam no banco e continuam valendo, então o app renova a sessão sozinho e recebe um token
 assinado com a chave nova.
+
+## API de autenticação
+
+Os quatro endpoints são os únicos abertos da API (fora o `/health`). Todos recebem e devolvem JSON. O arquivo `src/Estudarias.Api/Estudarias.Api.http` tem uma chamada de cada.
+
+| Endpoint | Corpo | Resposta |
+|---|---|---|
+| `POST /auth/register` | `name`, `email`, `password` | `201` com a sessão (o aluno já entra logado) |
+| `POST /auth/login` | `email`, `password` | `200` com a sessão |
+| `POST /auth/refresh` | `refreshToken` | `200` com a sessão nova; o token usado deixa de valer |
+| `POST /auth/logout` | `refreshToken` | `204`, também para um token desconhecido ou já revogado |
+
+A sessão (cadastro, login e renovação) tem sempre a mesma forma:
+
+```json
+{
+  "accessToken": "eyJhbGciOi...",
+  "accessTokenExpiresAt": "2026-11-09T12:15:00+00:00",
+  "refreshToken": "9f2c...64 caracteres hexadecimais",
+  "user": { "id": "0192f0c4-...", "email": "ana@example.com", "role": "Student", "studentId": "0192f0c4-..." }
+}
+```
+
+O app guarda o `refreshToken` (ele só aparece nessa resposta; o servidor guarda só o hash), manda o `accessToken` em `Authorization: Bearer` e, perto de `accessTokenExpiresAt`
+(ou ao receber `401`), chama `/auth/refresh`.
+
+As recusas são `application/problem+json` (RFC 9457) com o código do erro em `code`. É pelo `code` que o app decide o que mostrar, não pela mensagem:
+
+| Status | Quando | `code` |
+|---|---|---|
+| `400` | e-mail, senha ou nome inválidos | `identity.email.invalid`, `identity.password.tooShort`, `identity.password.noUppercase`, `noLowercase`, `noDigit`, `noSpecial`, `tooLong`, `student.name.required`, `student.name.tooLong` |
+| `401` | credenciais inválidas (senha errada, e-mail desconhecido ou conta desabilitada, sem distinção) | `identity.credentials.invalid` |
+| `401` | refresh token desconhecido, vencido, já usado ou de conta desabilitada | `identity.refreshToken.invalid` |
+| `409` | e-mail já cadastrado | `identity.email.taken` |
+| `500` | erro inesperado (por exemplo, de configuração) | sem `code`, sem detalhe técnico |
+
+Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `code`. Campos ausentes ou nulos recebem o mesmo erro de qualquer valor inválido, com `code`.
