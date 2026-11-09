@@ -1,12 +1,14 @@
 using Estudarias.Application.Common;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students;
+using Estudarias.Infrastructure.Experiment;
 using Estudarias.Infrastructure.Persistence;
 using Estudarias.Infrastructure.Persistence.Repositories;
 using Estudarias.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Estudarias.Infrastructure;
 
@@ -37,6 +39,14 @@ public static class DependencyInjection
                 $"PasswordHashing: every pepper needs at least {PasswordHashingOptions.MinimumPepperLength} characters.")
             .ValidateOnStart();
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
+
+        // A flag do sorteio do grupo experimental. Sem a seção, vale o padrão: sorteio ligado.
+        services.AddOptions<ExperimentalGroupOptions>()
+            .Bind(configuration.GetSection(ExperimentalGroupOptions.SectionName))
+            .Validate(o => Enum.IsDefined(o.FallbackGroup), "ExperimentalGroup:FallbackGroup is not a valid group.")
+            .ValidateOnStart();
+        services.AddSingleton<IExperimentalGroupAssigner>(sp => new ExperimentalGroupAssigner(
+            sp.GetRequiredService<IOptionsMonitor<ExperimentalGroupOptions>>(), Random.Shared));
 
         return services;
     }
