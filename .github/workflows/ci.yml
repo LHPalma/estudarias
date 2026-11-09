@@ -45,9 +45,15 @@ jobs:
       - name: Test Application
         run: dotnet test --project tests/Estudarias.Application.UnitTests --no-build --configuration Release
 
+      - name: Test API (unit)
+        run: dotnet test --project tests/Estudarias.Api.UnitTests --no-build --configuration Release
+
       - name: Test Infrastructure (unit)
         run: dotnet test --project tests/Estudarias.Infrastructure.UnitTests --no-build --configuration Release
 
       # O runner do GitHub tem Docker: o Testcontainers sobe o PostgreSQL de verdade.
       - name: Test Infrastructure (integration)
         run: dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests --no-build --configuration Release
+
+      - name: Test API (functional)
+        run: dotnet test --project tests/Estudarias.Api.FunctionalTests --no-build --configuration Release
