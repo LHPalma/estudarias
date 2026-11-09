@@ -66,6 +66,7 @@ para que a asserção seja exata.
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
+    dotnet test --project tests/Estudarias.Application.UnitTests
     dotnet test --project tests/Estudarias.Infrastructure.UnitTests
     dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
 
