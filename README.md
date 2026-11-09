@@ -18,6 +18,8 @@ O cliente mobile (Expo + TypeScript) consome a API REST. Toda a lógica fica no 
 ## Documentação
 
 - [`docs/schema.dbml`](docs/schema.dbml): schema alvo da v1, com dados de exemplo (Frações).
+- [`docs/adr/0001-authentication.md`](docs/adr/0001-authentication.md): as decisões da autenticação (conta, senha, sessão e grupo experimental), com as alternativas e as consequências.
+- [`docs/testing.md`](docs/testing.md): as convenções de teste.
 
 ## Rodando
 
@@ -27,6 +29,38 @@ dotnet run --project src/Estudarias.Api
 ```
 
 Com a API no ar, `GET http://localhost:5007/health` responde `Healthy`.
+
+## Configuração
+
+Em Development a API sobe sem configuração extra: o `appsettings.Development.json` traz valores de desenvolvimento (a senha do banco, o pepper e a chave do JWT), expostos
+de propósito e com aviso no arquivo. **Em qualquer outro ambiente a API não sobe sem as variáveis obrigatórias.**
+
+| Variável | Obrigatória | Padrão | Para quê (seção) |
+|---|---|---|---|
+| `ConnectionStrings__Default` | sim | só em Development | o PostgreSQL ([Banco de dados](#banco-de-dados)) |
+| `PasswordHashing__CurrentPepperVersion` | sim | só em Development | a versão com que os hashes novos são derivados ([Senhas](#senhas)) |
+| `PasswordHashing__Peppers__N` | sim | só em Development | o pepper da versão N, com 32 caracteres ou mais ([Senhas](#senhas)) |
+| `Jwt__SigningKey` | sim | só em Development | a chave que assina o access token, com 32 caracteres ou mais ([Autenticação](#autenticação)) |
+| `Jwt__Issuer`, `Jwt__Audience` | não | `Estudarias` | o emissor e a audiência do token ([Autenticação](#autenticação)) |
+| `Jwt__AccessTokenMinutes` | não | `15` | a vida do access token ([Autenticação](#autenticação)) |
+| `ExperimentalGroup__RandomAssignment` | não | `true` | liga o sorteio do grupo do aluno novo ([Grupo experimental](#grupo-experimental)) |
+| `ExperimentalGroup__FallbackGroup` | não | `Diagnostic` | o grupo de todo aluno novo com o sorteio desligado ([Grupo experimental](#grupo-experimental)) |
+| `ESTUDARIAS_CONNECTION_STRING` | não | `localhost` | só para o `dotnet ef`, que não passa pela API ([Banco de dados](#banco-de-dados)) |
+| `ESTUDARIAS_TEST_POSTGRES` | não | contêiner | um PostgreSQL existente para os testes, onde não há Docker (`docs/testing.md`) |
+
+Para rodar como em produção (troque os valores; **o pepper e a chave são segredos, e o pepper precisa ser o mesmo a cada subida**, senão as senhas já gravadas deixam de conferir):
+
+```bash
+ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS=http://localhost:5007 \
+ConnectionStrings__Default="Host=localhost;Database=estudarias;Username=estudarias;Password=<senha-do-banco>" \
+PasswordHashing__CurrentPepperVersion=1 \
+PasswordHashing__Peppers__1="<pepper: 32 ou mais caracteres>" \
+Jwt__SigningKey="<chave: 32 ou mais caracteres>" \
+dotnet run --project src/Estudarias.Api --no-launch-profile
+```
+
+Gere cada segredo uma vez (`openssl rand -base64 32`) e guarde-o fora do repositório. Sem alguma das obrigatórias, com um segredo curto ou com um grupo de reserva que não existe, a
+subida falha dizendo qual é.
 
 ## Banco de dados
 
