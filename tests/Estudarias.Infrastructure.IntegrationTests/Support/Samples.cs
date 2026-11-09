@@ -9,6 +9,11 @@ internal static class Samples
 
     public static readonly TimeSpan RefreshLifetime = TimeSpan.FromDays(30);
 
+    /// <summary>Peppers só dos testes, com o tamanho mínimo exigido. Não protegem nada.</summary>
+    public const string Pepper1 = "test-pepper-1-0123456789-abcdefghijklmnop";
+
+    public const string Pepper2 = "test-pepper-2-9876543210-zyxwvutsrqponmlk";
+
     public static PasswordHash Hash(int pepperVersion = 1) =>
         PasswordHash.Create("$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA", pepperVersion);
 
