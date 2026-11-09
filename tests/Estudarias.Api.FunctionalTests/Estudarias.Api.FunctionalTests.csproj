@@ -14,7 +14,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <PackageReference Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A mesma fixture dos testes de integração (PostgreSQL em contêiner, migrations aplicadas uma vez e um banco clonado por teste),
+         compartilhada pelo arquivo em vez de copiada. O namespace é o de origem. -->
+    <Compile Include="..\Estudarias.Infrastructure.IntegrationTests\Support\PostgresFixture.cs" Link="Support\PostgresFixture.cs" />
   </ItemGroup>
 
   <ItemGroup>
