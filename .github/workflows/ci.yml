@@ -3,9 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # Sem filtro de branches: o CI roda em todo pull request, seja qual for a base. Um PR empilhado, com a base na branch de outro
+  # PR, também passa por build e testes. O push segue restrito à main, então um PR aberto não gera duas execuções por commit.
   pull_request:
-    branches: [main]
-    
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
