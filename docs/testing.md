@@ -8,6 +8,7 @@ vermelho apontar a camada.
 | Projeto | Testa | Dependências |
 |---|---|---|
 | `Estudarias.Domain.UnitTests` | entidades, invariantes, cálculo do SM-2 | nenhuma: sem banco, sem I/O, sem relógio real |
+| `Estudarias.Infrastructure.UnitTests` | hash de senha, validação das opções | nenhuma: sem banco, sem Docker |
 | `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
 | `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
 | `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta | `WebApplicationFactory` + Testcontainers |
@@ -65,6 +66,7 @@ para que a asserção seja exata.
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
+    dotnet test --project tests/Estudarias.Infrastructure.UnitTests
     dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
 
 Os testes de integração sobem um PostgreSQL em contêiner (Testcontainers),
