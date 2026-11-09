@@ -11,7 +11,8 @@ vermelho apontar a camada.
 | `Estudarias.Infrastructure.UnitTests` | hash de senha, validação das opções | nenhuma: sem banco, sem Docker |
 | `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
 | `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
-| `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta | `WebApplicationFactory` + Testcontainers |
+| `Estudarias.Api.UnitTests` | emissor do token, validação das opções, usuário corrente | nenhuma: sem servidor, sem banco |
+| `Estudarias.Api.FunctionalTests` | pipeline de autenticação e endpoints REST de ponta a ponta | `WebApplicationFactory`; Testcontainers quando o teste toca o banco |
 
 Os projetos entram conforme a camada correspondente nasce. A pasta de cada
 teste espelha a pasta da classe testada (`Domain/Common/BaseEntity.cs` →
@@ -63,10 +64,24 @@ Nenhum teste depende do relógio real. Regras com data (próxima revisão do
 SM-2, auditoria) recebem um `TimeProvider`, e o teste usa `FakeTimeProvider`
 para que a asserção seja exata.
 
+## Testes funcionais da API
+
+`Estudarias.Api.FunctionalTests` sobe a API inteira (`WebApplicationFactory<Program>`) e chama por HTTP, com a composição e o
+pipeline reais. Só a chave do JWT é trocada, para o resultado não depender da chave de desenvolvimento.
+
+Os endpoints que os testes chamam moram no próprio projeto (`TestEndpointsController`) e **não declaram `[Authorize]`**: quem os
+protege é a política padrão da API, e é isso que o teste prova. Tokens inválidos (outro algoritmo, sem assinatura, papel que o emissor
+nunca emitiria) são montados à mão em `CraftedTokens`, fora do emissor da API.
+
+Os testes de autenticação não tocam o banco, então não precisam de contêiner. Os que passarem pelos endpoints de sessão (#41) vão
+precisar, e usam o PostgreSQL em contêiner como os de integração.
+
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
     dotnet test --project tests/Estudarias.Application.UnitTests
+    dotnet test --project tests/Estudarias.Api.UnitTests
+    dotnet test --project tests/Estudarias.Api.FunctionalTests
     dotnet test --project tests/Estudarias.Infrastructure.UnitTests
     dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
 
