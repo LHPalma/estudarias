@@ -17,6 +17,7 @@ O cliente mobile (Expo + TypeScript) consome a API REST. Toda a lógica fica no 
 
 ## Documentação
 
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): convenção de nome de branch, de commits e de PRs.
 - [`docs/schema.dbml`](docs/schema.dbml): schema alvo da v1, com dados de exemplo (Frações).
 
 ## Rodando
