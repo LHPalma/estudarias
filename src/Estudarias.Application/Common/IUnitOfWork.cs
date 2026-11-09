@@ -7,5 +7,6 @@ namespace Estudarias.Application.Common;
 public interface IUnitOfWork
 {
     /// <exception cref="ConcurrencyConflictException">Outra requisição alterou uma linha que esta também alterou.</exception>
+    /// <exception cref="UniqueConstraintViolationException">A gravação repetiu um valor que precisa ser único.</exception>
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
