@@ -41,3 +41,7 @@ jobs:
       # Um projeto de testes por passo, para o vermelho apontar a camada.
       - name: Test Domain
         run: dotnet test --project tests/Estudarias.Domain.UnitTests --no-build --configuration Release
+
+      # O runner do GitHub tem Docker: o Testcontainers sobe o PostgreSQL de verdade.
+      - name: Test Infrastructure
+        run: dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests --no-build --configuration Release
