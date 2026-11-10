@@ -31,6 +31,7 @@ public partial class DomainErrorCatalogTests
         "identity.password.tooShort",
         "identity.refreshToken.alreadyRevoked",
         "identity.refreshToken.invalid",
+        "identity.session.invalid",
     ];
 
     [GeneratedRegex(@"^[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*$")]
