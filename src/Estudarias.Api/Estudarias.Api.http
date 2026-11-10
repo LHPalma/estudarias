@@ -8,3 +8,53 @@ GET {{Estudarias.Api_HostAddress}}/openapi/v1.json
 Accept: application/json
 
 ###
+
+# Autenticação. Cadastre, copie o refreshToken e o accessToken da resposta para as variáveis abaixo e chame os demais.
+
+@refreshToken = cole-aqui-o-refreshToken
+@accessToken = cole-aqui-o-accessToken
+
+POST {{Estudarias.Api_HostAddress}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Ana",
+  "email": "ana@example.com",
+  "password": "Senha-valida-1!"
+}
+
+###
+
+POST {{Estudarias.Api_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ana@example.com",
+  "password": "Senha-valida-1!"
+}
+
+###
+
+POST {{Estudarias.Api_HostAddress}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+POST {{Estudarias.Api_HostAddress}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+# Qualquer outro endpoint exige o access token (Authorization: Bearer).
+GET {{Estudarias.Api_HostAddress}}/qualquer-endpoint-protegido
+Authorization: Bearer {{accessToken}}
+
+###
