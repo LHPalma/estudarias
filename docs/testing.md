@@ -9,8 +9,8 @@ vermelho apontar a camada.
 |---|---|---|
 | `Estudarias.Domain.UnitTests` | entidades, invariantes, cálculo do SM-2 | nenhuma: sem banco, sem I/O, sem relógio real |
 | `Estudarias.Infrastructure.UnitTests` | hash de senha, validação das opções | nenhuma: sem banco, sem Docker |
-| `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
-| `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
+| `Estudarias.Application.UnitTests` | handlers de commands, e a fronteira da Application (testes de arquitetura) | NSubstitute para repositórios e serviços |
+| `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas de leitura (`*Reads`), seed YAML | PostgreSQL real via Testcontainers |
 | `Estudarias.Api.UnitTests` | emissor do token, validação das opções, usuário corrente | nenhuma: sem servidor, sem banco |
 | `Estudarias.Api.FunctionalTests` | pipeline de autenticação e endpoints REST de ponta a ponta | `WebApplicationFactory`; Testcontainers quando o teste toca o banco |
 
@@ -116,3 +116,16 @@ nunca com o provider InMemory, que ignora todas elas.
 
 O `global.json` liga o `dotnet test` ao Microsoft.Testing.Platform, exigido
 pelo xUnit v3 no SDK do .NET 10.
+
+### Testes de leitura
+
+A leitura não passa por caso de uso (ADR-002), então a consulta (`*Reads`) é testada onde está o banco: `Students/Queries/ProfileReadsTests`, em
+`Infrastructure.IntegrationTests`, chama a porta de leitura pela composição real (`NewScope().Get<IProfileReads>()`) sobre um PostgreSQL de
+verdade. Além do resultado, o teste prova o que a consulta **não** faz: um contexto próprio com `LogTo` captura o SQL, e o teste confere que ele
+é uma consulta só e que não toca em `password_hash`. O endpoint que usa a leitura tem o teste funcional dele (`Endpoints/MeEndpointTests`).
+
+### Testes de arquitetura
+
+`Application.UnitTests/Architecture/ApplicationBoundaryTests` usa o NetArchTest para guardar a fronteira da Application: fora das classes `*Reads`,
+nenhum tipo depende do `Microsoft.EntityFrameworkCore` nem do `IApplicationDbContext`. Um teste de controle prova que a análise enxerga essas
+dependências nas classes `*Reads`; sem ele, as regras passariam no vazio. Uma regra nova de dependência entra nesse arquivo.
