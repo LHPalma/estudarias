@@ -53,6 +53,12 @@ Content-Type: application/json
 
 ###
 
+# O perfil de quem está logado: a conta e o aluno ligado a ela. Exige o access token (Authorization: Bearer).
+GET {{Estudarias.Api_HostAddress}}/me
+Authorization: Bearer {{accessToken}}
+
+###
+
 # Qualquer outro endpoint exige o access token (Authorization: Bearer).
 GET {{Estudarias.Api_HostAddress}}/qualquer-endpoint-protegido
 Authorization: Bearer {{accessToken}}
