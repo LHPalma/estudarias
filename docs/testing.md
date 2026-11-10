@@ -8,6 +8,7 @@ vermelho apontar a camada.
 | Projeto | Testa | Dependências |
 |---|---|---|
 | `Estudarias.Domain.UnitTests` | entidades, invariantes, cálculo do SM-2 | nenhuma: sem banco, sem I/O, sem relógio real |
+| `Estudarias.Infrastructure.UnitTests` | hash de senha, validação das opções | nenhuma: sem banco, sem Docker |
 | `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
 | `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
 | `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta | `WebApplicationFactory` + Testcontainers |
@@ -65,6 +66,30 @@ para que a asserção seja exata.
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
+    dotnet test --project tests/Estudarias.Application.UnitTests
+    dotnet test --project tests/Estudarias.Infrastructure.UnitTests
+    dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
+
+Os testes de integração sobem um PostgreSQL em contêiner (Testcontainers),
+então precisam de Docker. Onde não há Docker, `ESTUDARIAS_TEST_POSTGRES` aponta
+para um servidor existente (uma connection string com permissão de criar
+bancos):
+
+    ESTUDARIAS_TEST_POSTGRES="Host=localhost;Username=estudarias;Password=estudarias;Database=postgres" \
+      dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
+
+### Testes de fluxo
+
+`Identity/*FlowTests` chamam os casos de uso como a API chamaria, ligados por `AddApplication` e `AddInfrastructure` sobre um
+PostgreSQL real, e conferem o banco direto, não só o que o caso de uso devolve. Só o emissor do access token é um dublê (o JWT é da
+API). O relógio é um `FakeTimeProvider` que o teste avança para vencer tokens sem esperar, e `BuildProvider` liga outro provedor ao
+mesmo banco com a configuração trocada, que é como um teste simula uma rotação de pepper ou a flag do sorteio virada. O nome de cada
+teste cita o requisito do SRS que ele prova (`docs/SRS/`).
+
+As migrations são aplicadas uma vez em um banco-modelo, e cada teste recebe um
+banco novo clonado dele. Regras que dependem do PostgreSQL de verdade (índice
+único, chave estrangeira, constraint, token de concorrência) são testadas aqui,
+nunca com o provider InMemory, que ignora todas elas.
 
 O `global.json` liga o `dotnet test` ao Microsoft.Testing.Platform, exigido
 pelo xUnit v3 no SDK do .NET 10.
