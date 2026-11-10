@@ -11,7 +11,8 @@ vermelho apontar a camada.
 | `Estudarias.Infrastructure.UnitTests` | hash de senha, validação das opções | nenhuma: sem banco, sem Docker |
 | `Estudarias.Application.UnitTests` | handlers de commands e queries | NSubstitute para repositórios e serviços |
 | `Estudarias.Infrastructure.IntegrationTests` | mapeamento EF Core, consultas, seed YAML | PostgreSQL real via Testcontainers |
-| `Estudarias.Api.FunctionalTests` | endpoints REST de ponta a ponta | `WebApplicationFactory` + Testcontainers |
+| `Estudarias.Api.UnitTests` | emissor do token, validação das opções, usuário corrente | nenhuma: sem servidor, sem banco |
+| `Estudarias.Api.FunctionalTests` | pipeline de autenticação e endpoints REST de ponta a ponta | `WebApplicationFactory`; Testcontainers quando o teste toca o banco |
 
 Os projetos entram conforme a camada correspondente nasce. A pasta de cada
 teste espelha a pasta da classe testada (`Domain/Common/BaseEntity.cs` →
@@ -63,10 +64,32 @@ Nenhum teste depende do relógio real. Regras com data (próxima revisão do
 SM-2, auditoria) recebem um `TimeProvider`, e o teste usa `FakeTimeProvider`
 para que a asserção seja exata.
 
+## Testes funcionais da API
+
+`Estudarias.Api.FunctionalTests` sobe a API inteira (`WebApplicationFactory<Program>`) e chama por HTTP, com a composição e o
+pipeline reais.
+
+- **Pipeline de autenticação** (`Security/`): usa `ApiFactory`, que só troca a chave do JWT e não toca o banco, então não precisa de contêiner.
+  Os endpoints que esses testes chamam moram no próprio projeto (`TestEndpointsController`) e **não declaram `[Authorize]`**: quem os protege é
+  a política padrão da API, e é isso que o teste prova. Tokens inválidos (outro algoritmo, sem assinatura, papel que o emissor nunca emitiria) são
+  montados à mão em `CraftedTokens`, fora do emissor da API.
+- **Endpoints de autenticação** (`Endpoints/`): usam `DatabaseApiFactory`, que liga a API a um banco de verdade, um por teste. A fixture é a mesma
+  dos testes de integração (`PostgresFixture`, PostgreSQL em contêiner), compartilhada **pelo arquivo** (`Compile Include` no `.csproj`) em vez de
+  copiada; por isso o namespace dela é o de origem. Precisam de Docker, ou de `ESTUDARIAS_TEST_POSTGRES`, como os de integração. O relógio é um
+  `FakeTimeProvider` que começa no instante real e fica parado: o middleware do JWT confere a validade pelo relógio de verdade, então o teste só
+  avança o tempo (para vencer um refresh token) quando não vai mais usar o access token.
+
+Uma armadilha de `WebApplicationFactory`: a configuração que o teste troca precisa chegar **antes** do código do `Program`, porque o
+`AddInfrastructure` lê a connection string na hora do registro. `ConfigureAppConfiguration` da fábrica só é aplicado depois, então a API usaria o
+banco do `appsettings.Development.json` (o de desenvolvimento). Use `UseSetting`, como `DatabaseApiFactory` faz. Opções lidas depois (como as do JWT)
+enxergam as duas formas.
+
 ## Execução
 
     dotnet test --project tests/Estudarias.Domain.UnitTests
     dotnet test --project tests/Estudarias.Application.UnitTests
+    dotnet test --project tests/Estudarias.Api.UnitTests
+    dotnet test --project tests/Estudarias.Api.FunctionalTests
     dotnet test --project tests/Estudarias.Infrastructure.UnitTests
     dotnet test --project tests/Estudarias.Infrastructure.IntegrationTests
 
