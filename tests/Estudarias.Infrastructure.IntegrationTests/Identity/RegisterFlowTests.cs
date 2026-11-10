@@ -60,7 +60,11 @@ public class RegisterFlowTests(PostgresFixture postgres) : AuthenticationTests(p
         Assert.Equal(1, await CountAsync("refresh_token"));
         Assert.Equal(HashOf(payload.RefreshToken), await ScalarAsync<string>("SELECT token_hash FROM refresh_token"));
         Assert.Equal(0, await CountAsync("refresh_token", $"token_hash = '{payload.RefreshToken}'"));
-        Assert.True(await ScalarAsync<bool>("SELECT expires_at > now() + interval '29 days' FROM refresh_token"));
+
+        // A validade se mede pelo relógio do teste, o mesmo que o caso de uso usou, e não pelo now() do banco: o relógio do teste está
+        // parado em uma data fixa, então comparar com o instante real passaria a falhar no dia em que ele passasse dessa data.
+        var expiresAt = await ScalarAsync<DateTime>("SELECT expires_at FROM refresh_token");
+        Assert.Equal(Clock.GetUtcNow() + Samples.RefreshLifetime, new DateTimeOffset(expiresAt, TimeSpan.Zero));
     }
 
     [Fact(DisplayName = "FA-01 / RN-02: e-mail já cadastrado é conflito, em qualquer caixa de letras, e nada novo é gravado")]
