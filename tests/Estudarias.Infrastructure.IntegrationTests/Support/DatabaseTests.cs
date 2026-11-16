@@ -3,6 +3,7 @@ using Estudarias.Application.Common;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students;
 using Estudarias.Domain.Identity;
+using Estudarias.Domain.Students;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -18,7 +19,8 @@ public abstract class DatabaseTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private ServiceProvider _provider = null!;
 
-    private string ConnectionString { get; set; } = "";
+    /// <summary>A connection string do banco deste teste, para um teste montar o próprio contexto (por exemplo, para ver o SQL).</summary>
+    internal string ConnectionString { get; private set; } = "";
 
     private readonly List<ServiceProvider> _extraProviders = [];
 
@@ -79,10 +81,10 @@ public abstract class DatabaseTests(PostgresFixture postgres) : IAsyncLifetime
     internal TestScope NewScope(ServiceProvider? provider = null) => new((provider ?? _provider).CreateScope());
 
     /// <summary>Grava um aluno e a conta dele e devolve a conta.</summary>
-    internal async Task<User> SeedUserAsync(string email = "ana@example.com")
+    internal async Task<User> SeedUserAsync(string email = "ana@example.com", ExperimentalGroup group = ExperimentalGroup.Diagnostic)
     {
         using var scope = NewScope();
-        var student = Samples.Student();
+        var student = Samples.Student(group);
         var user = Samples.User(student, email);
 
         scope.Students.Add(student);

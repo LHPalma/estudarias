@@ -16,12 +16,16 @@ public static class IdentityErrors
     public const string PasswordTooShort = "identity.password.tooShort";
     public const string RefreshTokenAlreadyRevoked = "identity.refreshToken.alreadyRevoked";
     public const string RefreshTokenInvalid = "identity.refreshToken.invalid";
+    public const string SessionInvalid = "identity.session.invalid";
 
     public static DomainAuthenticationException InvalidCredentials() =>
         new(CredentialsInvalid, "E-mail or password not valid.");
 
     public static DomainAuthenticationException InvalidRefreshToken() =>
         new(RefreshTokenInvalid, "Refresh token not valid: it is unknown, expired, already used or revoked.");
+
+    public static DomainAuthenticationException InvalidSession() =>
+        new(SessionInvalid, "Session not valid: the account does not exist or is disabled.");
 
     public static DomainValidationException InvalidEmail() =>
         new(EmailInvalid, "E-mail not valid.");

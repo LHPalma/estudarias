@@ -9,7 +9,7 @@ Clean Architecture em quatro projetos (.NET 10, C#):
 | Projeto | Responsabilidade | Depende de |
 |---|---|---|
 | `Estudarias.Domain` | Entidades, regras de negócio e motor (nota, desbloqueio, SM-2) | nada |
-| `Estudarias.Application` | Casos de uso, DTOs e abstrações (repositórios, relógio) | Domain |
+| `Estudarias.Application` | Casos de uso (escrita), consultas de leitura (`*Reads`), DTOs e abstrações (repositórios, relógio, contexto de leitura) | Domain |
 | `Estudarias.Infrastructure` | EF Core + PostgreSQL, seed dos YAML, implementações das abstrações | Application |
 | `Estudarias.Api` | Controllers REST, links de ação e composição das camadas (DI) | Application, Infrastructure |
 
@@ -20,6 +20,7 @@ O cliente mobile (Expo + TypeScript) consome a API REST. Toda a lógica fica no 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): convenção de nome de branch, de commits e de PRs.
 - [`docs/schema.dbml`](docs/schema.dbml): schema alvo da v1, com dados de exemplo (Frações).
 - [`docs/adr/0001-authentication.md`](docs/adr/0001-authentication.md): as decisões da autenticação (conta, senha, sessão e grupo experimental), com as alternativas e as consequências.
+- [`docs/adr/0002-reads-in-application.md`](docs/adr/0002-reads-in-application.md): como a leitura se separa da escrita (portas de leitura na Application, sem caso de uso nem repositório).
 - [`docs/testing.md`](docs/testing.md): as convenções de teste.
 
 ## Rodando
@@ -172,3 +173,25 @@ As recusas são `application/problem+json` (RFC 9457) com o código do erro em `
 | `500` | erro inesperado (por exemplo, de configuração) | sem `code`, sem detalhe técnico |
 
 Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `code`. Campos ausentes ou nulos recebem o mesmo erro de qualquer valor inválido, com `code`.
+
+## API do perfil
+
+`GET /me` devolve o perfil de quem está logado. Exige o `accessToken` em `Authorization: Bearer`, como todo endpoint fora os de autenticação. É uma leitura: não grava nada e não passa por caso de uso (veja o [ADR-002](docs/adr/0002-reads-in-application.md)).
+
+```json
+{
+  "user": { "id": "0192f0c4-...", "email": "ana@example.com", "role": "Student" },
+  "student": { "id": "0192f0c4-...", "name": "Ana Souza", "experimentalGroup": "Diagnostic" }
+}
+```
+
+- `user` é a conta de acesso, e `student` é o perfil de estudo ligado a ela, separados como no domínio. `student.id` é o `studentId` que o login devolve.
+- `experimentalGroup` é `Control` ou `Diagnostic` e diz ao app qual versão da experiência mostrar. O grupo é sorteado no cadastro e não muda.
+- O progresso por tópico ainda não faz parte da resposta (o `student_topic` não está mapeado).
+
+| Status | Quando | `code` |
+|---|---|---|
+| `401` | sem token, token vencido ou inválido | sem `code` (o desafio `Bearer` vem no cabeçalho `WWW-Authenticate`) |
+| `401` | token válido de uma conta que não existe mais ou foi desabilitada, sem distinção | `identity.session.invalid` |
+
+Ao receber `401` o app tenta `/auth/refresh`; se a renovação também falhar, volta para o login.

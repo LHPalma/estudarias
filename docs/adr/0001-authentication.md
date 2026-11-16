@@ -75,7 +75,7 @@ Os padrões vieram da autenticação do `ticketerias-api` (ADR-006), que por sua
 - Bloqueio por tentativas erradas e limite de taxa no login.
 - Revogar o access token antes de expirar, e "sair de todos os dispositivos".
 - Login social.
-- Um endpoint de perfil (`me`): a resposta de sessão traz o `studentId`, mas não o nome do aluno, que está no perfil de estudo.
+- Um endpoint de perfil (`me`): a resposta de sessão traz o `studentId`, mas não o nome do aluno, que está no perfil de estudo. Ele entrou depois (#60), como o primeiro caminho de leitura da API, e a decisão está no ADR-002.
 
 ## Consequências
 
