@@ -1,0 +1,8 @@
+namespace Estudarias.Domain.StudentFlashcards;
+
+public static class StudentFlashcardErrors
+{
+    public const string StudentRequired = "studentFlashcard.student.required";
+    public const string FlashcardRequired = "studentFlashcard.flashcard.required";
+    public const string OriginAttemptInvalid = "studentFlashcard.originAttempt.invalid";
+}
