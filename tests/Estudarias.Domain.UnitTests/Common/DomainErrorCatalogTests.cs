@@ -39,6 +39,8 @@ public partial class DomainErrorCatalogTests
         "studentFlashcard.student.required",
         "studentFlashcard.flashcard.required",
         "studentFlashcard.originAttempt.invalid",
+        "studentFlashcard.rating.invalid",
+        "studentFlashcard.scheduler.mismatch",
         "identity.password.tooLong",
         "identity.password.tooShort",
         "identity.refreshToken.alreadyRevoked",

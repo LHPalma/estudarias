@@ -63,6 +63,33 @@ public sealed class StudentFlashcard : BaseEntity, IAggregateRoot
             studentId, flashcardId, originAttemptId, scheduler.Algorithm, outcome.State, outcome.NextReviewAt);
     }
 
+    /// <summary>
+    /// Revisa o cartão: delega o cálculo ao scheduler do algoritmo do cartão e só então grava o novo estado e a próxima
+    /// revisão. A data parte do instante real da revisão, e revisar antes do vencimento é permitido.
+    /// </summary>
+    public void Review(ReviewRating rating, IReviewScheduler scheduler, TimeProvider clock)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(clock);
+
+        if (!Enum.IsDefined(rating))
+        {
+            throw new DomainValidationException(StudentFlashcardErrors.RatingInvalid, "Review rating is not valid.");
+        }
+
+        if (scheduler.Algorithm != Algorithm)
+        {
+            throw new DomainValidationException(
+                StudentFlashcardErrors.SchedulerMismatch,
+                $"The flashcard is scheduled by '{Algorithm}' and cannot be reviewed by '{scheduler.Algorithm}'.");
+        }
+
+        var outcome = scheduler.Review(SchedulingState, rating, clock.GetUtcNow());
+
+        SchedulingState = outcome.State;
+        NextReviewAt = outcome.NextReviewAt;
+    }
+
     /// <summary>Se a revisão já venceu: a próxima revisão é igual ou anterior ao instante atual.</summary>
     public bool IsDue(TimeProvider clock)
     {
