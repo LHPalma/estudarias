@@ -84,7 +84,9 @@ Table alternativa {
   Note: '''
     CHECK ((correta AND tipo_erro_id IS NULL) OR (NOT correta AND tipo_erro_id IS NOT NULL)).
     Índice único parcial em (exercicio_id) WHERE correta = true: no máximo 1 correta por exercício.
-    "Pelo menos 1 correta" e "tipo_erro do mesmo tópico do exercício" ficam no validador do seed.
+    O Domain também garante, ao criar o exercício: pelo menos 2 alternativas, exatamente 1 correta e texto sem
+    repetição dentro do exercício (sem diferenciar maiúsculas).
+    "tipo_erro do mesmo tópico do exercício" fica no validador do seed.
   '''
 }
 
