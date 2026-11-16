@@ -18,6 +18,7 @@ O cliente mobile (Expo + TypeScript) consome a API REST. Toda a lógica fica no 
 ## Documentação
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): convenção de nome de branch, de commits e de PRs.
+- [`docs/api.md`](docs/api.md): o contrato da API REST que o app consome (rotas, corpos, respostas, erros e links).
 - [`docs/schema.dbml`](docs/schema.dbml): schema alvo da v1, com dados de exemplo (Frações).
 - [`docs/adr/0001-authentication.md`](docs/adr/0001-authentication.md): as decisões da autenticação (conta, senha, sessão e grupo experimental), com as alternativas e as consequências.
 - [`docs/adr/0002-reads-in-application.md`](docs/adr/0002-reads-in-application.md): como a leitura se separa da escrita (portas de leitura na Application, sem caso de uso nem repositório).
