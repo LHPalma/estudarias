@@ -59,7 +59,7 @@ Table licao {
   id uuid [pk]
   topico_id uuid [not null, ref: > topico.id]
   ordem int [not null]
-  titulo varchar [not null]
+  titulo "varchar(150)" [not null]
   conteudo text [not null]
 
   indexes {
