@@ -9,6 +9,15 @@ public partial class DomainErrorCatalogTests
     // Toda invariante nova quebra o teste até o código ser registrado aqui. É proposital.
     private static readonly string[] RegisteredCodes =
     [
+        "exercise.lesson.required",
+        "exercise.statement.required",
+        "exercise.difficulty.invalid",
+        "exercise.alternative.tooFew",
+        "exercise.alternative.noCorrect",
+        "exercise.alternative.multipleCorrect",
+        "exercise.alternative.textRequired",
+        "exercise.alternative.textDuplicated",
+        "exercise.alternative.errorTypeRequired",
         "student.name.required",
         "student.name.tooLong",
         "student.group.invalid",
