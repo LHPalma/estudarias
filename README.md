@@ -21,6 +21,7 @@ O cliente mobile (Expo + TypeScript) consome a API REST. Toda a lógica fica no 
 - [`docs/schema.dbml`](docs/schema.dbml): schema alvo da v1, com dados de exemplo (Frações).
 - [`docs/adr/0001-authentication.md`](docs/adr/0001-authentication.md): as decisões da autenticação (conta, senha, sessão e grupo experimental), com as alternativas e as consequências.
 - [`docs/adr/0002-reads-in-application.md`](docs/adr/0002-reads-in-application.md): como a leitura se separa da escrita (portas de leitura na Application, sem caso de uso nem repositório).
+- [`docs/adr/0003-spaced-repetition-scheduler.md`](docs/adr/0003-spaced-repetition-scheduler.md): a repetição espaçada por um port no Domain, com o estado opaco e o cartão preso ao algoritmo (SM-2 agora, trocável depois).
 - [`docs/testing.md`](docs/testing.md): as convenções de teste.
 
 ## Rodando
