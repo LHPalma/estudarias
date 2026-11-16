@@ -180,7 +180,8 @@ Table flashcard {
   Note: '''
     Global por tipo_erro: um único flashcard gerado_por_erro por tipo_erro.
     Índice único parcial em (tipo_erro_id) WHERE origem = 'gerado_por_erro'.
-    CHECK ((origem = 'gerado_por_erro') = (tipo_erro_id IS NOT NULL)).
+    CHECK ((origem = 'gerado_por_erro') = (tipo_erro_id IS NOT NULL)). O Domain garante o mesmo por construção: o cartão
+    manual nasce sem tipo de erro e o gerado por erro só nasce com um.
   '''
 }
 
