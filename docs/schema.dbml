@@ -159,7 +159,7 @@ Table tentativa {
   aluno_id uuid [not null, ref: > student.id]
   exercicio_id uuid [not null, ref: > exercicio.id]
   alternativa_id uuid [not null, ref: > alternativa.id]
-  tempo_resposta_seg int [null]
+  tempo_resposta_seg int [null, note: 'opcional; CHECK (tempo_resposta_seg >= 0), também garantido pelo Domain']
   timestamp timestamptz [not null]
 
   indexes {
