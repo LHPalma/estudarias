@@ -185,18 +185,20 @@ Table flashcard {
 }
 
 Table aluno_flashcard {
+  id uuid [pk]
   aluno_id uuid [not null, ref: > student.id]
   flashcard_id uuid [not null, ref: > flashcard.id]
-  proxima_revisao timestamptz [not null]
-  repeticoes int [not null, default: 0, note: 'SM-2: acertos consecutivos; zera ao errar']
-  intervalo int [not null, note: 'em dias']
-  fator_facilidade "numeric(4,2)" [not null, default: 2.5, note: 'SM-2, inicia em 2.5, mínimo 1.3']
   tentativa_origem_id uuid [null, ref: > tentativa.id, note: 'primeira tentativa que gerou este cartão para o aluno']
+  algoritmo varchar [not null, note: 'algoritmo que agenda o cartão, ex.: sm2; o cartão fica preso a ele']
+  estado_agendamento jsonb [not null, note: 'opaco para o Domain: só o adapter do algoritmo o lê e escreve. No SM-2: {"repetitions":0,"intervalDays":1,"easeFactor":2.5}']
+  proxima_revisao timestamptz [not null]
 
   indexes {
-    (aluno_id, flashcard_id) [pk]
+    (aluno_id, flashcard_id) [unique]
     (aluno_id, proxima_revisao)
   }
+
+  Note: 'O estado de revisão é neutro ao algoritmo: repetições, intervalo e fator do SM-2 ficam dentro de estado_agendamento.'
 }
 
 // ---------- Records: dados de exemplo (Frações) ----------
@@ -274,6 +276,6 @@ Records flashcard(id, topico_id, pergunta, resposta, origem, tipo_erro_id) {
   '0192f0c4-0009-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
 }
 
-Records aluno_flashcard(aluno_id, flashcard_id, proxima_revisao, repeticoes, intervalo, fator_facilidade, tentativa_origem_id) {
-  '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0009-7000-8000-000000000001', '2026-10-08 10:12:00-03', 0, 1, 2.5, '0192f0c4-0008-7000-8000-000000000001'
+Records aluno_flashcard(id, aluno_id, flashcard_id, tentativa_origem_id, algoritmo, estado_agendamento, proxima_revisao) {
+  '0192f0c4-000d-7000-8000-000000000001', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0008-7000-8000-000000000001', 'sm2', '{"repetitions":0,"intervalDays":1,"easeFactor":2.5}', '2026-10-08 10:12:00-03'
 }
