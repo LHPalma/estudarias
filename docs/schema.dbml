@@ -44,8 +44,8 @@ Table pre_requisito {
 
 Table tipo_erro {
   id uuid [pk]
-  codigo varchar [not null]
-  nome varchar [not null]
+  codigo "varchar(100)" [not null, note: 'minúsculas e dígitos com _ entre grupos, começando por letra: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$']
+  nome "varchar(100)" [not null]
   descricao text
   feedback text [not null]
   topico_id uuid [not null, ref: > topico.id]
