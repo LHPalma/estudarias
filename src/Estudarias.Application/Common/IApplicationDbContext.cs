@@ -1,5 +1,10 @@
+using Estudarias.Domain.ErrorTypes;
+using Estudarias.Domain.Exercises;
+using Estudarias.Domain.Flashcards;
 using Estudarias.Domain.Identity;
+using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Students;
+using Estudarias.Domain.Topics;
 
 namespace Estudarias.Application.Common;
 
@@ -13,4 +18,19 @@ public interface IApplicationDbContext
     IQueryable<Student> Students { get; }
 
     IQueryable<User> Users { get; }
+
+    /// <summary>
+    /// Os tópicos. Os pré-requisitos não têm propriedade mapeada (<c>Topic.Prerequisites</c> é uma visão em memória); numa consulta,
+    /// leia-os com <c>EF.Property&lt;IEnumerable&lt;TopicPrerequisite&gt;&gt;(topic, "_prerequisites")</c>.
+    /// </summary>
+    IQueryable<Topic> Topics { get; }
+
+    IQueryable<ErrorType> ErrorTypes { get; }
+
+    IQueryable<Lesson> Lessons { get; }
+
+    /// <summary>Os exercícios, com as alternativas (parte do agregado, carregadas junto).</summary>
+    IQueryable<Exercise> Exercises { get; }
+
+    IQueryable<Flashcard> Flashcards { get; }
 }
