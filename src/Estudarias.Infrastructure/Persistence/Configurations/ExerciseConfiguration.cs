@@ -59,8 +59,9 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
                 .IsUnique()
                 .HasFilter("is_correct");
 
-            // Conteúdo não some em cascata: tentativas apontam para as alternativas.
-            alternative.OwnedEntityType.FindOwnership()!.DeleteBehavior = DeleteBehavior.Restrict;
+            // A ligação com o exercício (exercise_id) fica em cascata, o padrão de uma coleção owned: as alternativas são parte do
+            // agregado. O snapshot das migrations não sabe registrar outro comportamento nessa ligação. Quem protege as alternativas
+            // de sumir são as FKs que apontam para elas (a tentativa, na #84), que são RESTRICT.
         });
 
         // A coleção pública é só leitura; o EF Core preenche o campo do agregado.

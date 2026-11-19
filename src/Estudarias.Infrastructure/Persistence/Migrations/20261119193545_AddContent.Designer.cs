@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Estudarias.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261119185038_AddContent")]
+    [Migration("20261119193545_AddContent")]
     partial class AddContent
     {
         /// <inheritdoc />

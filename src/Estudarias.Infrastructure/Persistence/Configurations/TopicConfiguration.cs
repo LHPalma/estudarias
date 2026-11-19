@@ -43,8 +43,9 @@ internal sealed class TopicConfiguration : IEntityTypeConfiguration<Topic>
             prerequisite.HasOne<Topic>().WithMany().HasForeignKey(value => value.PrerequisiteId).OnDelete(DeleteBehavior.Restrict);
             prerequisite.HasIndex(value => value.PrerequisiteId).HasDatabaseName("ix_topic_prerequisite_prerequisite_id");
 
-            // Conteúdo não some em cascata, nem as linhas do próprio agregado: apagar um tópico é recusado pelo banco.
-            prerequisite.OwnedEntityType.FindOwnership()!.DeleteBehavior = DeleteBehavior.Restrict;
+            // A ligação com o dono (topic_id) fica em cascata, o padrão de uma coleção owned: as linhas são parte do agregado. O
+            // snapshot das migrations não sabe registrar outro comportamento nessa ligação, e trocá-lo deixaria o modelo sempre
+            // "com mudanças pendentes". Um tópico exigido por outro continua protegido pela FK de prerequisite_id, que é RESTRICT.
         });
     }
 }

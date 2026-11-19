@@ -90,7 +90,7 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         column: x => x.topic_id,
                         principalTable: "topic",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -169,7 +169,7 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         column: x => x.exercise_id,
                         principalTable: "exercise",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
