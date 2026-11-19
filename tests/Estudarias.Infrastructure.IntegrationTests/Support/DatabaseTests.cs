@@ -1,9 +1,12 @@
 using Estudarias.Application;
+using Estudarias.Application.Attempts;
 using Estudarias.Application.Common;
+using Estudarias.Application.StudentFlashcards;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students;
 using Estudarias.Domain.Identity;
 using Estudarias.Domain.Students;
+using Estudarias.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -94,6 +97,53 @@ public abstract class DatabaseTests(PostgresFixture postgres) : IAsyncLifetime
         return user;
     }
 
+    protected static CancellationToken Cancel => TestContext.Current.CancellationToken;
+
+    /// <summary>
+    /// Grava o <see cref="SampleContent"/>. O conteúdo não tem repositório de escrita (só a carga do seed grava), então vai direto
+    /// pelo AppDbContext.
+    /// </summary>
+    internal async Task<SampleContent> SeedContentAsync()
+    {
+        var content = SampleContent.Create();
+
+        await WriteAsync(db =>
+        {
+            db.Topics.AddRange(content.Basics, content.Fractions);
+            db.ErrorTypes.Add(content.ErrorType);
+            db.Lessons.Add(content.Lesson);
+            db.Exercises.Add(content.Exercise);
+            db.Flashcards.AddRange(content.Generated, content.Manual);
+        });
+
+        return content;
+    }
+
+    /// <summary>Grava pelo AppDbContext de um escopo novo.</summary>
+    internal async Task WriteAsync(Action<AppDbContext> write)
+    {
+        using var scope = NewScope();
+        var db = scope.Get<AppDbContext>();
+        write(db);
+        await db.SaveChangesAsync(Cancel);
+    }
+
+    /// <summary>Lê pela visão sem rastreamento que a Application usa (ADR-002), num escopo novo.</summary>
+    internal async Task<T> ReadAsync<T>(Func<IApplicationDbContext, Task<T>> read)
+    {
+        using var scope = NewScope();
+        return await read(scope.Get<IApplicationDbContext>());
+    }
+
+    /// <summary>Roda o SQL e confere que o banco o recusou pela restrição esperada.</summary>
+    internal async Task<PostgresException> AssertRejectedAsync(string sql, string sqlState, string constraint)
+    {
+        var exception = await Assert.ThrowsAsync<PostgresException>(() => ExecuteAsync(sql));
+        Assert.Equal(sqlState, exception.SqlState);
+        Assert.Equal(constraint, exception.ConstraintName);
+        return exception;
+    }
+
     /// <summary>Lê uma coluna direto do banco, para provar o que foi gravado sem passar pelo mapeamento.</summary>
     internal async Task<T> ScalarAsync<T>(string sql)
     {
@@ -119,6 +169,10 @@ internal sealed class TestScope(IServiceScope scope) : IDisposable
     public IRefreshTokenRepository RefreshTokens => scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
 
     public IStudentRepository Students => scope.ServiceProvider.GetRequiredService<IStudentRepository>();
+
+    public IAttemptRepository Attempts => scope.ServiceProvider.GetRequiredService<IAttemptRepository>();
+
+    public IStudentFlashcardRepository StudentFlashcards => scope.ServiceProvider.GetRequiredService<IStudentFlashcardRepository>();
 
     public IUnitOfWork UnitOfWork => scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
