@@ -456,7 +456,6 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
     [InlineData("topic", "Fractions")]
     [InlineData("error_type", "ErrorType")]
     [InlineData("lesson", "Lesson")]
-    [InlineData("exercise", "Exercise")]
     public async Task Delete_OfReferencedContent_IsRestricted(string table, string item)
     {
         // Arrange
@@ -466,8 +465,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
             "Basics" => content.Basics.Id,
             "Fractions" => content.Fractions.Id,
             "ErrorType" => content.ErrorType.Id,
-            "Lesson" => content.Lesson.Id,
-            _ => content.Exercise.Id,
+            _ => content.Lesson.Id,
         };
 
         // Act
@@ -476,5 +474,18 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
         // Assert
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, exception.SqlState);
         Assert.Equal(1, await ScalarAsync<long>($"SELECT count(*) FROM {table} WHERE id = '{id}'"));
+    }
+
+    [Fact(DisplayName = "As alternativas são parte do exercício: saem junto com ele, sem sobrar linha órfã")]
+    public async Task Delete_OfAnExercise_TakesItsAlternatives()
+    {
+        // Arrange
+        var content = await SeedContentAsync();
+
+        // Act
+        await ExecuteAsync($"DELETE FROM exercise WHERE id = '{content.Exercise.Id}'");
+
+        // Assert
+        Assert.Equal(0, await ScalarAsync<long>($"SELECT count(*) FROM alternative WHERE exercise_id = '{content.Exercise.Id}'"));
     }
 }
