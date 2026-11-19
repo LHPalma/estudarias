@@ -5,9 +5,9 @@ namespace Estudarias.Domain.Exercises;
 
 public sealed class Alternative : BaseEntity
 {
-    public string Text { get; }
-    public bool IsCorrect { get; }
-    public Guid? ErrorTypeId { get; }
+    public string Text { get; private set; }
+    public bool IsCorrect { get; private set; }
+    public Guid? ErrorTypeId { get; private set; }
 
     private Alternative(string text, bool isCorrect, Guid? errorTypeId)
     {
@@ -29,6 +29,17 @@ public sealed class Alternative : BaseEntity
         }
 
         return new Alternative(validText, isCorrect: false, errorTypeId);
+    }
+
+    /// <summary>
+    /// Assume o texto, a correção e o tipo de erro de <paramref name="revised"/>, mantendo o próprio id: é como a revisão do
+    /// exercício preserva a alternativa para que as tentativas continuem apontando para ela.
+    /// </summary>
+    internal void TakeFrom(Alternative revised)
+    {
+        Text = revised.Text;
+        IsCorrect = revised.IsCorrect;
+        ErrorTypeId = revised.ErrorTypeId;
     }
 
     private static string ValidText(string text)

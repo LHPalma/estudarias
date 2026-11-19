@@ -24,7 +24,15 @@ internal sealed class FlashcardConfiguration : IEntityTypeConfiguration<Flashcar
 
         builder.Property(flashcard => flashcard.TopicId).HasColumnName("topic_id");
         builder.HasOne<Topic>().WithMany().HasForeignKey(flashcard => flashcard.TopicId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(flashcard => flashcard.TopicId).HasDatabaseName("ix_flashcard_topic_id");
+        // O código é a chave natural do flashcard na carga do conteúdo, único no tópico. O índice começa pelo topic_id, então também
+        // serve à chave estrangeira.
+        builder.Property(flashcard => flashcard.Code)
+            .HasColumnName("code")
+            .HasMaxLength(Flashcard.CodeMaxLength)
+            .IsRequired();
+        builder.HasIndex(flashcard => new { flashcard.TopicId, flashcard.Code })
+            .IsUnique()
+            .HasDatabaseName("ux_flashcard_topic_id_code");
 
         builder.Property(flashcard => flashcard.Question).HasColumnName("question").IsRequired();
         builder.Property(flashcard => flashcard.Answer).HasColumnName("answer").IsRequired();

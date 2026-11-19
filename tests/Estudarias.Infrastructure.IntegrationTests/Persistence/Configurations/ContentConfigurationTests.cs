@@ -135,7 +135,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
         // Arrange
         var content = await SeedContentAsync();
         var exercise = Exercise.Create(
-            content.Lesson.Id, "Quanto é 1/4 + 1/4?", difficulty, [Alternative.Correct("1/2"), Alternative.Wrong("2/8", content.ErrorType.Id)]);
+            content.Lesson.Id, "soma_de_quartos", "Quanto é 1/4 + 1/4?", difficulty, [Alternative.Correct("1/2"), Alternative.Wrong("2/8", content.ErrorType.Id)]);
         await WriteAsync(db => db.Exercises.Add(exercise));
 
         // Act

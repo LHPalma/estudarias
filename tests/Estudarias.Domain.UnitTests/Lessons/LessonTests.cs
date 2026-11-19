@@ -144,4 +144,31 @@ public class LessonTests
         Assert.NotEqual(Guid.Empty, first.Id);
         Assert.NotEqual(first.Id, second.Id);
     }
+
+    [Fact(DisplayName = "Revisar troca o título e o conteúdo, e mantém o tópico e a ordem")]
+    public void Revise_ChangesTheContentAndKeepsTheKey()
+    {
+        // Arrange
+        var lesson = Lesson.Create(TopicId, 2, Title, Content);
+
+        // Act
+        lesson.Revise("  Título novo  ", "Conteúdo novo");
+
+        // Assert
+        Assert.Equal((TopicId, 2, "Título novo", "Conteúdo novo"), (lesson.TopicId, lesson.Order, lesson.Title, lesson.Content));
+    }
+
+    [Fact(DisplayName = "Revisar aplica as regras da criação, e nada muda quando falha")]
+    public void Revise_WithoutContent_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var lesson = Lesson.Create(TopicId, 1, Title, Content);
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => lesson.Revise("Outro", " "));
+
+        // Assert
+        Assert.Equal("lesson.content.required", exception.Code);
+        Assert.Equal(Title, lesson.Title);
+    }
 }

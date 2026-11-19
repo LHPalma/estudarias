@@ -1,5 +1,7 @@
 using Estudarias.Application.Attempts;
 using Estudarias.Application.Common;
+using Estudarias.Application.Content;
+using Estudarias.Infrastructure.Content;
 using Estudarias.Application.Identity;
 using Estudarias.Application.StudentFlashcards;
 using Estudarias.Application.Students;
@@ -35,6 +37,9 @@ public static class DependencyInjection
         services.AddScoped<IStudentRepository, StudentRepository>();
         services.AddScoped<IAttemptRepository, AttemptRepository>();
         services.AddScoped<IStudentFlashcardRepository, StudentFlashcardRepository>();
+
+        // A carga do conteúdo (comando seed): a única escrita do conteúdo.
+        services.AddScoped<IContentLoader, ContentLoader>();
 
         // Um pepper ausente, curto ou com a versão corrente fora do mapa derruba a subida: melhor do que descobrir no primeiro login.
         services.AddOptions<PasswordHashingOptions>()

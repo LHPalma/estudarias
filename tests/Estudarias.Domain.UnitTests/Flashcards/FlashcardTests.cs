@@ -8,6 +8,7 @@ public class FlashcardTests
     private static readonly Guid TopicId = Guid.CreateVersion7();
     private static readonly Guid ErrorTypeId = Guid.CreateVersion7();
 
+    private const string Code = "soma_direta";
     private const string Question = "Por que 1/2 + 1/3 não é 2/5?";
     private const string Answer = "Porque é preciso deixar os denominadores iguais antes de somar.";
 
@@ -15,7 +16,7 @@ public class FlashcardTests
     public void CreateManual_WithValidData_KeepsValues()
     {
         // Act
-        var flashcard = Flashcard.CreateManual(TopicId, $"  {Question}  ", $"\n{Answer}\n");
+        var flashcard = Flashcard.CreateManual(TopicId, Code, $"  {Question}  ", $"\n{Answer}\n");
 
         // Assert
         Assert.Equal(TopicId, flashcard.TopicId);
@@ -29,7 +30,7 @@ public class FlashcardTests
     public void CreateFromError_WithValidData_KeepsValues()
     {
         // Act
-        var flashcard = Flashcard.CreateFromError(TopicId, ErrorTypeId, $"  {Question}  ", $"\n{Answer}\n");
+        var flashcard = Flashcard.CreateFromError(TopicId, Code, ErrorTypeId, $"  {Question}  ", $"\n{Answer}\n");
 
         // Assert
         Assert.Equal(TopicId, flashcard.TopicId);
@@ -44,7 +45,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateManual(Guid.Empty, Question, Answer));
+            () => Flashcard.CreateManual(Guid.Empty, Code, Question, Answer));
         Assert.Equal("flashcard.topic.required", exception.Code);
     }
 
@@ -53,7 +54,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateFromError(Guid.Empty, ErrorTypeId, Question, Answer));
+            () => Flashcard.CreateFromError(Guid.Empty, Code, ErrorTypeId, Question, Answer));
         Assert.Equal("flashcard.topic.required", exception.Code);
     }
 
@@ -66,7 +67,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateManual(TopicId, question!, Answer));
+            () => Flashcard.CreateManual(TopicId, Code, question!, Answer));
         Assert.Equal("flashcard.question.required", exception.Code);
     }
 
@@ -79,7 +80,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateFromError(TopicId, ErrorTypeId, question!, Answer));
+            () => Flashcard.CreateFromError(TopicId, Code, ErrorTypeId, question!, Answer));
         Assert.Equal("flashcard.question.required", exception.Code);
     }
 
@@ -92,7 +93,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateManual(TopicId, Question, answer!));
+            () => Flashcard.CreateManual(TopicId, Code, Question, answer!));
         Assert.Equal("flashcard.answer.required", exception.Code);
     }
 
@@ -105,7 +106,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateFromError(TopicId, ErrorTypeId, Question, answer!));
+            () => Flashcard.CreateFromError(TopicId, Code, ErrorTypeId, Question, answer!));
         Assert.Equal("flashcard.answer.required", exception.Code);
     }
 
@@ -114,7 +115,7 @@ public class FlashcardTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Flashcard.CreateFromError(TopicId, Guid.Empty, Question, Answer));
+            () => Flashcard.CreateFromError(TopicId, Code, Guid.Empty, Question, Answer));
         Assert.Equal("flashcard.errorType.required", exception.Code);
     }
 
@@ -122,11 +123,67 @@ public class FlashcardTests
     public void Create_AssignsDistinctIds()
     {
         // Act
-        var first = Flashcard.CreateManual(TopicId, Question, Answer);
-        var second = Flashcard.CreateManual(TopicId, Question, Answer);
+        var first = Flashcard.CreateManual(TopicId, Code, Question, Answer);
+        var second = Flashcard.CreateManual(TopicId, Code, Question, Answer);
 
         // Assert
         Assert.NotEqual(Guid.Empty, first.Id);
         Assert.NotEqual(first.Id, second.Id);
+    }
+
+    [Theory(DisplayName = "O código do flashcard é obrigatório e tem o formato dos códigos de conteúdo")]
+    [InlineData(null, "flashcard.code.required")]
+    [InlineData("", "flashcard.code.required")]
+    [InlineData("Soma", "flashcard.code.invalid")]
+    [InlineData("soma direta", "flashcard.code.invalid")]
+    public void Create_WithAnInvalidCode_ThrowsDomainValidationException(string? code, string expected)
+    {
+        // Act
+        var manual = Assert.Throws<DomainValidationException>(() => Flashcard.CreateManual(TopicId, code!, Question, Answer));
+        var generated = Assert.Throws<DomainValidationException>(
+            () => Flashcard.CreateFromError(TopicId, code!, ErrorTypeId, Question, Answer));
+
+        // Assert
+        Assert.Equal((expected, expected), (manual.Code, generated.Code));
+    }
+
+    [Fact(DisplayName = "O cartão guarda o código")]
+    public void Create_KeepsTheCode()
+    {
+        // Act
+        var flashcard = Flashcard.CreateManual(TopicId, Code, Question, Answer);
+
+        // Assert
+        Assert.Equal(Code, flashcard.Code);
+    }
+
+    [Fact(DisplayName = "Revisar com tipo de erro torna o cartão gerado por erro; sem, manual")]
+    public void Revise_ChangesTheOriginWithTheErrorType()
+    {
+        // Arrange
+        var flashcard = Flashcard.CreateManual(TopicId, Code, Question, Answer);
+
+        // Act
+        flashcard.Revise("  Outra pergunta  ", "Outra resposta", ErrorTypeId);
+        var generated = (flashcard.Question, flashcard.Answer, flashcard.Origin, flashcard.ErrorTypeId);
+        flashcard.Revise(Question, Answer, errorTypeId: null);
+
+        // Assert
+        Assert.Equal(("Outra pergunta", "Outra resposta", FlashcardOrigin.GeneratedByError, (Guid?)ErrorTypeId), generated);
+        Assert.Equal((FlashcardOrigin.Manual, (Guid?)null, Code), (flashcard.Origin, flashcard.ErrorTypeId, flashcard.Code));
+    }
+
+    [Fact(DisplayName = "Revisar aplica as regras da criação, e nada muda quando falha")]
+    public void Revise_WithAnEmptyQuestion_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var flashcard = Flashcard.CreateManual(TopicId, Code, Question, Answer);
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => flashcard.Revise(" ", Answer, ErrorTypeId));
+
+        // Assert
+        Assert.Equal("flashcard.question.required", exception.Code);
+        Assert.Equal((Question, FlashcardOrigin.Manual), (flashcard.Question, flashcard.Origin));
     }
 }

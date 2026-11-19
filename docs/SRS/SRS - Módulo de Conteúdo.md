@@ -1,6 +1,6 @@
 # SRS — Módulo de Conteúdo (Tópicos, Lições, Exercícios, Tipos de Erro e Flashcards)
 
-**Status:** Em implementação. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83) está implementada: mapeamento, restrições, migration `AddContent` e testes de integração (Seção 8.3). A carga do seed YAML e o primeiro tópico (#85) ainda não têm implementação. Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83) está implementada: mapeamento, restrições, migration `AddContent` e testes de integração (Seção 8.3). A carga do seed YAML e o conteúdo inicial (#85) também estão implementados: o comando `seed`, o validador, a carga com upsert e os arquivos `content/operacoes-basicas.yaml` e `content/fracoes.yaml` (Seção 8.4). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -54,7 +54,7 @@ Não cobre (ver Seção 7):
 - **Seção 5**: fluxos alternativos e de exceção (FA-CNT-01 a FA-CNT-08).
 - **Seção 6**: requisitos não funcionais (RNF-CNT-01 a RNF-CNT-05).
 - **Seção 7**: restrições, premissas e o que fica de fora.
-- **Seção 8**: modelo de dados, decisões da persistência e catálogo de erros.
+- **Seção 8**: modelo de dados, decisões da persistência e da carga, e catálogo de erros.
 - **Seção 9**: rastreabilidade.
 
 ---
@@ -214,7 +214,7 @@ Além do Domain, o banco recusa o que o conteúdo não pode ter:
 
 ### RN-CNT-11: Chave natural e identidade estável
 
-Os itens são identificados por: slug do tópico; `code` do tipo de erro (dentro do tópico); `order` da lição (dentro do tópico); `code` do exercício e `code` do flashcard (o escopo de unicidade desses dois `code` é definido na #85). A carga procura o item pela chave natural: se existe, **atualiza o conteúdo e mantém o id**; se não, cria com id novo. Tentativas e cartões já gravados continuam apontando para o mesmo item.
+Os itens são identificados por: slug do tópico; `code` do tipo de erro (dentro do tópico); `order` da lição (dentro do tópico); `code` do exercício e `code` do flashcard, **ambos únicos dentro do tópico** (o exercício pode mudar de lição sem perder o id; Seção 8.4). A carga procura o item pela chave natural: se existe, **atualiza o conteúdo e mantém o id**; se não, cria com id novo. Tentativas e cartões já gravados continuam apontando para o mesmo item.
 
 ### RN-CNT-12: A carga é tudo ou nada
 
@@ -393,9 +393,9 @@ As tabelas seguem o `docs/schema.dbml`, já em inglês para o conteúdo desde a 
 | `topic_prerequisite` | PK `PK_topic_prerequisite` em `(topic_id, prerequisite_id)`; `ck_topic_prerequisite_not_self`: `CHECK (topic_id <> prerequisite_id)`; índice `ix_topic_prerequisite_prerequisite_id`; ciclos barrados pelo validador (RN-CNT-08) |
 | `error_type` | único `(topic_id, code)`: `ux_error_type_topic_id_code` (RN-CNT-03) |
 | `lesson` | único `(topic_id, position)`: `ux_lesson_topic_id_position`; `ck_lesson_position`: `CHECK (position >= 1)` (RN-CNT-04) |
-| `exercise` | `ck_exercise_difficulty`: `CHECK (difficulty IN ('easy', 'medium', 'hard'))`; índice `ix_exercise_lesson_id`; `code` único (campo novo da #85; escopo de unicidade definido lá) |
+| `exercise` | `ck_exercise_difficulty`: `CHECK (difficulty IN ('easy', 'medium', 'hard'))`; `code` único na lição: `ux_exercise_lesson_id_code`, que também serve à chave estrangeira (a carga exige o código único no tópico; o banco garante o que consegue sem a coluna do tópico) |
 | `alternative` | `ck_alternative_error_type`: `CHECK ((is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL))`; índice único parcial `ux_alternative_exercise_id_correct` em `(exercise_id) WHERE is_correct` (no máximo uma correta); índices `ix_alternative_exercise_id` e `ix_alternative_error_type_id`; "tipo de erro do mesmo tópico" no validador (RN-CNT-09) |
-| `flashcard` | `ck_flashcard_origin`: `CHECK (origin IN ('manual', 'generated_by_error'))`; `ck_flashcard_error_type`: `CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL))`; índice único parcial `ux_flashcard_error_type_id_generated` em `(error_type_id) WHERE origin = 'generated_by_error'` (RN-CNT-07, RN-CNT-10); índice `ix_flashcard_topic_id`; `code` único (campo novo da #85; escopo de unicidade definido lá) |
+| `flashcard` | `ck_flashcard_origin`: `CHECK (origin IN ('manual', 'generated_by_error'))`; `ck_flashcard_error_type`: `CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL))`; índice único parcial `ux_flashcard_error_type_id_generated` em `(error_type_id) WHERE origin = 'generated_by_error'` (RN-CNT-07, RN-CNT-10); `code` único no tópico: `ux_flashcard_topic_id_code`, que também serve à chave estrangeira |
 
 Todas as chaves estrangeiras entre itens do conteúdo são `ON DELETE RESTRICT`. As duas exceções são as ligações de uma linha com o próprio agregado, `topic_prerequisite.topic_id` e `alternative.exercise_id`, que são `ON DELETE CASCADE` (Seção 8.3). Os enums (`difficulty`, `origin`) são gravados como texto em minúsculas, com a conversão explícita no mapeamento.
 
@@ -409,7 +409,18 @@ Todas as chaves estrangeiras entre itens do conteúdo são `ON DELETE RESTRICT`.
 - **O conteúdo não tem repositório de escrita** (RN-CNT-14). A Application lê pelas visões `AsNoTracking` do `IApplicationDbContext` (`Topics`, `ErrorTypes`, `Lessons`, `Exercises`, `Flashcards`); quem grava é a carga da #85, pelo `AppDbContext`.
 - **Testes** (`ContentConfigurationTests`, PostgreSQL real via Testcontainers, RNF-CNT-04): ida e volta de cada agregado (com alternativas e pré-requisitos), a leitura dos pré-requisitos numa consulta, a leitura sem rastreamento, cada restrição da tabela acima provocada por SQL direto (conferindo o código do erro e o nome da restrição), os casos que devem ser aceitos (o mesmo `code` de tipo de erro em outro tópico, várias alternativas erradas), o `ON DELETE RESTRICT` de cada item referenciado e a cascata das alternativas com o exercício.
 
-### 8.4 Catálogo de erros
+### 8.4 Decisões da carga (#85)
+
+- **Arquitetura.** O validador (`ContentValidator`) é lógica pura na Application, sobre os documentos lidos do YAML (`ContentFile`, `TopicDocument`...). Ele monta cada agregado pelo Domain para aplicar as mesmas regras, sem duplicá-las. O leitor YAML (`YamlContentReader`, com o YamlDotNet) e a carga (`ContentLoader`, a única escrita do conteúdo, pelo `AppDbContext`) ficam na Infrastructure, atrás da porta `IContentLoader`. O comando `seed` fica na API (`Commands/SeedCommand`): ele usa a mesma composição e a mesma connection string, carrega e termina sem subir o servidor.
+- **Formato.** As chaves do YAML são em camelCase (`errorTypes`, `errorType`). Uma chave desconhecida é erro, com a linha, e não um campo ignorado: um erro de digitação não some em silêncio. A alternativa sem `correct` é errada. O flashcard com `errorType` é o gerado por aquele erro, e sem, manual. O arquivo precisa se chamar `<slug>.yaml`.
+- **Códigos novos no Domain.** `Exercise.Code` e `Flashcard.Code` são obrigatórios e seguem o formato dos códigos de tipo de erro (`ContentCode`: minúsculas e dígitos com `_`, começando por letra). Os dois são **únicos no tópico** na carga. No banco, o exercício é único por `(lesson_id, code)` e o flashcard por `(topic_id, code)` (migration `AddContentCodes`).
+- **Revisão pelo Domain.** Cada agregado ganhou um método de revisão com as regras da criação, que valida tudo antes de mudar qualquer coisa: `Topic.Rename` e `Topic.ReplacePrerequisites`, `ErrorType.Revise`, `Lesson.Revise`, `Exercise.Revise` e `Flashcard.Revise`. A chave natural nunca muda.
+- **Pré-requisitos.** A lista do YAML vale inteira: o que saiu deixa de ser pré-requisito, e o que continua é a mesma linha. O validador monta o grafo com os tópicos dos arquivos e os do banco que não estão na carga, então acha um ciclo que passa por um tópico que só está no banco.
+- **Alternativas.** Numa revisão, as alternativas são casadas pelo texto, sem diferenciar maiúsculas. A que continua mantém o id e assume a correção e o tipo de erro novos; a nova entra com id novo. **Remover uma alternativa de um exercício já carregado é recusado** (`exercise.alternative.removed`), porque as tentativas apontam para ela. Para trocar as alternativas, crie um exercício com código novo.
+- **Resumo.** O resultado conta os itens criados, alterados e iguais pelo rastreamento do EF Core. Um item conta como alterado quando muda alguma coluna dele ou alguma linha da coleção do agregado (alternativa, pré-requisito). Revisar com os mesmos valores não muda nada, então a recarga dá tudo igual (FA-CNT-06).
+- **Problemas que só aparecem com o banco**, como a alternativa removida, são listados com o arquivo e o item, como os do validador, e também não gravam nada.
+
+### 8.5 Catálogo de erros
 
 São erros de domínio da construção dos agregados. **Nenhum vira resposta HTTP**: o conteúdo só entra pela carga, e o validador os traduz em mensagens com arquivo e item (RNF-CNT-03).
 
@@ -418,8 +429,8 @@ São erros de domínio da construção dos agregados. **Nenhum vira resposta HTT
 | `Topic` | `topic.name.required`, `topic.name.tooLong`, `topic.slug.required`, `topic.slug.invalid`, `topic.prerequisite.self`, `topic.prerequisite.duplicated` |
 | `ErrorType` | `errorType.topic.required`, `errorType.code.required`, `errorType.code.invalid`, `errorType.name.required`, `errorType.name.tooLong`, `errorType.feedback.required` |
 | `Lesson` | `lesson.topic.required`, `lesson.order.invalid`, `lesson.title.required`, `lesson.title.tooLong`, `lesson.content.required` |
-| `Exercise` | `exercise.lesson.required`, `exercise.statement.required`, `exercise.difficulty.invalid`, `exercise.alternative.tooFew`, `exercise.alternative.noCorrect`, `exercise.alternative.multipleCorrect`, `exercise.alternative.textRequired`, `exercise.alternative.textDuplicated`, `exercise.alternative.errorTypeRequired` |
-| `Flashcard` | `flashcard.topic.required`, `flashcard.question.required`, `flashcard.answer.required`, `flashcard.errorType.required` |
+| `Exercise` | `exercise.lesson.required`, `exercise.statement.required`, `exercise.difficulty.invalid`, `exercise.alternative.tooFew`, `exercise.alternative.noCorrect`, `exercise.alternative.multipleCorrect`, `exercise.alternative.textRequired`, `exercise.alternative.textDuplicated`, `exercise.alternative.errorTypeRequired`, `exercise.code.required`, `exercise.code.invalid`, `exercise.alternative.removed` |
+| `Flashcard` | `flashcard.topic.required`, `flashcard.question.required`, `flashcard.answer.required`, `flashcard.errorType.required`, `flashcard.code.required`, `flashcard.code.invalid` |
 
 ---
 
@@ -432,11 +443,11 @@ São erros de domínio da construção dos agregados. **Nenhum vira resposta HTT
 | RF-CNT-01, RN-CNT-04 | Domain: #27 (PR #65) | `LessonTests` |
 | RF-CNT-03, RN-CNT-05, RN-CNT-06 | Domain: #29 (PR #77) | `ExerciseTests`; `AlternativeTests` |
 | RF-CNT-04, RN-CNT-07 | Domain: #31 (PR #67) | `FlashcardTests` |
-| Catálogo de erros (Seção 8.4) | Domain: #12 (PR #13) | `DomainErrorCatalogTests` |
+| Catálogo de erros (Seção 8.5) | Domain: #12 (PR #13) | `DomainErrorCatalogTests` |
 | RF-CNT-05, RN-CNT-10, RN-CNT-14 | #83: configurações em `Infrastructure/Persistence/Configurations`, `TopicPrerequisite` no Domain, visões no `IApplicationDbContext` e migration `AddContent` (decisões na Seção 8.3) | `ContentConfigurationTests`: ida e volta de cada agregado; cada restrição recusada pelo banco; `ON DELETE RESTRICT`. `MigrationsTests`: o modelo bate com a migration |
-| RF-CNT-06, RN-CNT-11, RN-CNT-12, RN-CNT-13, FA-CNT-06, FA-CNT-07 | #85 (a fazer) | Integração da carga: carga inicial, recarga idempotente, arquivo inválido sem gravar nada |
-| RF-CNT-07, RN-CNT-08, RN-CNT-09, FA-CNT-01 a FA-CNT-05 | #85 (a fazer) | Testes do validador, uma regra por teste |
-| RF-CNT-08 | #85 (a fazer) | Carga dos dois arquivos de conteúdo contra o PostgreSQL real |
+| RF-CNT-06, RN-CNT-11, RN-CNT-12, RN-CNT-13, FA-CNT-06, FA-CNT-07 | #85: `ContentLoader`, `YamlContentReader`, `SeedCommand`, métodos de revisão do Domain, migration `AddContentCodes` | Integração da carga: carga inicial, recarga idempotente, arquivo inválido sem gravar nada |
+| RF-CNT-07, RN-CNT-08, RN-CNT-09, FA-CNT-01 a FA-CNT-05 | #85: `ContentValidator` | `ContentValidatorTests` (Application), uma regra por teste; `YamlContentReaderTests` (formato e conteúdo do repositório válido, sem banco) |
+| RF-CNT-08 | #85: `content/operacoes-basicas.yaml` e `content/fracoes.yaml` | `ContentLoaderTests`: carga dos dois arquivos contra o PostgreSQL real, recarga idempotente, revisão mantendo os ids, alternativa removida e arquivo inválido sem gravar nada |
 
 ---
 
