@@ -34,12 +34,13 @@ internal sealed record SampleContent(
 
         var exercise = Exercise.Create(
             lesson.Id,
+            "soma_de_meios_e_tercos",
             "Quanto é 1/2 + 1/3?",
             Difficulty.Medium,
             [Alternative.Correct("5/6"), Alternative.Wrong("2/5", errorType.Id)]);
 
-        var generated = Flashcard.CreateFromError(fractions.Id, errorType.Id, "Por que 1/2 + 1/3 não é 2/5?", "Falta o denominador comum.");
-        var manual = Flashcard.CreateManual(fractions.Id, "O que o denominador indica?", "Em quantas partes o todo foi dividido.");
+        var generated = Flashcard.CreateFromError(fractions.Id, "por_que_nao_soma_direto", errorType.Id, "Por que 1/2 + 1/3 não é 2/5?", "Falta o denominador comum.");
+        var manual = Flashcard.CreateManual(fractions.Id, "o_que_e_denominador", "O que o denominador indica?", "Em quantas partes o todo foi dividido.");
 
         return new SampleContent(basics, fractions, errorType, lesson, exercise, generated, manual);
     }

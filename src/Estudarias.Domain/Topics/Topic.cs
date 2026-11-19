@@ -11,7 +11,7 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
 
     private readonly List<TopicPrerequisite> _prerequisites = [];
 
-    public string Name { get; }
+    public string Name { get; private set; }
     public string Slug { get; }
 
     /// <summary>Os ids dos tópicos exigidos, na ordem em que foram adicionados.</summary>
@@ -28,17 +28,7 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
 
     public static Topic Create(string name, string slug)
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new DomainValidationException(TopicErrors.NameRequired, "Topic name is required.");
-        }
-
-        var trimmed = name.Trim();
-        if (trimmed.Length > NameMaxLength)
-        {
-            throw new DomainValidationException(
-                TopicErrors.NameTooLong, $"Topic name must have at most {NameMaxLength} characters.");
-        }
+        var validName = ValidName(name);
 
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -52,16 +42,15 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
                 $"Topic slug must have lowercase letters and digits separated by single hyphens, with at most {SlugMaxLength} characters.");
         }
 
-        return new Topic(trimmed, slug);
+        return new Topic(validName, slug);
     }
+
+    /// <summary>Troca o nome, com as mesmas regras da criação. O slug não muda: é a chave natural do tópico na carga do conteúdo.</summary>
+    public void Rename(string name) => Name = ValidName(name);
 
     public void AddPrerequisite(Guid requisiteId)
     {
-        if (requisiteId == Id)
-        {
-            throw new DomainValidationException(
-                TopicErrors.PrerequisiteSelf, "A topic cannot be a prerequisite of itself.");
-        }
+        EnsureNotSelf(requisiteId);
 
         if (_prerequisites.Any(prerequisite => prerequisite.PrerequisiteId == requisiteId))
         {
@@ -70,5 +59,58 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
         }
 
         _prerequisites.Add(new TopicPrerequisite(requisiteId));
+    }
+
+    /// <summary>
+    /// Passa a exigir exatamente <paramref name="requisiteIds"/>. Valida a lista inteira antes de mudar qualquer coisa, e mexe só no
+    /// que mudou: os pré-requisitos que continuam são os mesmos objetos, então a persistência não apaga e recria a mesma linha.
+    /// </summary>
+    public void ReplacePrerequisites(IReadOnlyCollection<Guid> requisiteIds)
+    {
+        ArgumentNullException.ThrowIfNull(requisiteIds);
+
+        foreach (var requisiteId in requisiteIds)
+        {
+            EnsureNotSelf(requisiteId);
+        }
+
+        if (requisiteIds.Distinct().Count() != requisiteIds.Count)
+        {
+            throw new DomainValidationException(
+                TopicErrors.PrerequisiteDuplicated, "The same prerequisite cannot appear twice.");
+        }
+
+        _prerequisites.RemoveAll(prerequisite => !requisiteIds.Contains(prerequisite.PrerequisiteId));
+
+        foreach (var requisiteId in requisiteIds.Where(id => _prerequisites.All(prerequisite => prerequisite.PrerequisiteId != id)))
+        {
+            _prerequisites.Add(new TopicPrerequisite(requisiteId));
+        }
+    }
+
+    private void EnsureNotSelf(Guid requisiteId)
+    {
+        if (requisiteId == Id)
+        {
+            throw new DomainValidationException(
+                TopicErrors.PrerequisiteSelf, "A topic cannot be a prerequisite of itself.");
+        }
+    }
+
+    private static string ValidName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainValidationException(TopicErrors.NameRequired, "Topic name is required.");
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed.Length > NameMaxLength)
+        {
+            throw new DomainValidationException(
+                TopicErrors.NameTooLong, $"Topic name must have at most {NameMaxLength} characters.");
+        }
+
+        return trimmed;
     }
 }

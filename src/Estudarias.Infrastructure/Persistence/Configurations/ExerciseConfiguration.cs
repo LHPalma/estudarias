@@ -18,7 +18,16 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
 
         builder.Property(exercise => exercise.LessonId).HasColumnName("lesson_id");
         builder.HasOne<Lesson>().WithMany().HasForeignKey(exercise => exercise.LessonId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(exercise => exercise.LessonId).HasDatabaseName("ix_exercise_lesson_id");
+        // O código é a chave natural do exercício na carga do conteúdo. A carga exige o código único no tópico inteiro (o exercício
+        // pode mudar de lição sem perder o id); o banco garante o que consegue sem a coluna do tópico, o código único na lição. O
+        // índice começa pelo lesson_id, então também serve à chave estrangeira.
+        builder.Property(exercise => exercise.Code)
+            .HasColumnName("code")
+            .HasMaxLength(Exercise.CodeMaxLength)
+            .IsRequired();
+        builder.HasIndex(exercise => new { exercise.LessonId, exercise.Code })
+            .IsUnique()
+            .HasDatabaseName("ux_exercise_lesson_id_code");
 
         builder.Property(exercise => exercise.Statement).HasColumnName("statement").IsRequired();
 

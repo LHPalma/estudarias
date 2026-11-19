@@ -173,4 +173,69 @@ public class TopicTests
         Assert.Equal("topic.prerequisite.duplicated", exception.Code);
         Assert.Single(topic.Prerequisites);
     }
+
+    [Fact(DisplayName = "Renomear troca o nome, aparado, e mantém o slug")]
+    public void Rename_ChangesTheNameAndKeepsTheSlug()
+    {
+        // Arrange
+        var topic = NewTopic();
+
+        // Act
+        topic.Rename("  Frações e decimais  ");
+
+        // Assert
+        Assert.Equal(("Frações e decimais", "fracoes"), (topic.Name, topic.Slug));
+    }
+
+    [Fact(DisplayName = "Renomear aplica as regras do nome da criação, e nada muda quando falha")]
+    public void Rename_WithABlankName_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var topic = NewTopic();
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => topic.Rename(" "));
+
+        // Assert
+        Assert.Equal("topic.name.required", exception.Code);
+        Assert.Equal("Frações", topic.Name);
+    }
+
+    [Fact(DisplayName = "Trocar os pré-requisitos mantém os que continuam, tira os ausentes e acrescenta os novos")]
+    public void ReplacePrerequisites_KeepsRemovesAndAdds()
+    {
+        // Arrange
+        var topic = NewTopic();
+        var kept = Guid.CreateVersion7();
+        var removed = Guid.CreateVersion7();
+        var added = Guid.CreateVersion7();
+        topic.AddPrerequisite(kept);
+        topic.AddPrerequisite(removed);
+
+        // Act
+        topic.ReplacePrerequisites([added, kept]);
+
+        // Assert
+        Assert.Equal([kept, added], topic.Prerequisites);
+    }
+
+    [Theory(DisplayName = "Trocar os pré-requisitos recusa o próprio tópico e a repetição, sem mudar nada")]
+    [InlineData(true, "topic.prerequisite.self")]
+    [InlineData(false, "topic.prerequisite.duplicated")]
+    public void ReplacePrerequisites_WithAnInvalidList_ThrowsAndChangesNothing(bool self, string expected)
+    {
+        // Arrange
+        var topic = NewTopic();
+        var existing = Guid.CreateVersion7();
+        topic.AddPrerequisite(existing);
+        var other = Guid.CreateVersion7();
+        Guid[] list = self ? [other, topic.Id] : [other, other];
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => topic.ReplacePrerequisites(list));
+
+        // Assert
+        Assert.Equal(expected, exception.Code);
+        Assert.Equal([existing], topic.Prerequisites);
+    }
 }

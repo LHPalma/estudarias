@@ -112,6 +112,12 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
                     b.Property<string>("Difficulty")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -129,8 +135,9 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LessonId")
-                        .HasDatabaseName("ix_exercise_lesson_id");
+                    b.HasIndex("LessonId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_exercise_lesson_id_code");
 
                     b.ToTable("exercise", null, t =>
                         {
@@ -148,6 +155,12 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("answer");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
 
                     b.Property<Guid?>("ErrorTypeId")
                         .HasColumnType("uuid")
@@ -175,8 +188,9 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_flashcard_error_type_id_generated")
                         .HasFilter("origin = 'generated_by_error'");
 
-                    b.HasIndex("TopicId")
-                        .HasDatabaseName("ix_flashcard_topic_id");
+                    b.HasIndex("TopicId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_flashcard_topic_id_code");
 
                     b.ToTable("flashcard", null, t =>
                         {

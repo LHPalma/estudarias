@@ -1,19 +1,18 @@
-using System.Text.RegularExpressions;
 using Estudarias.Domain.Common;
 using Estudarias.Domain.Common.Exceptions;
 
 namespace Estudarias.Domain.ErrorTypes;
 
-public sealed partial class ErrorType : BaseEntity, IAggregateRoot
+public sealed class ErrorType : BaseEntity, IAggregateRoot
 {
-    public const int CodeMaxLength = 100;
+    public const int CodeMaxLength = ContentCode.MaxLength;
     public const int NameMaxLength = 100;
 
     public Guid TopicId { get; }
     public string Code { get; }
-    public string Name { get; }
-    public string? Description { get; }
-    public string Feedback { get; }
+    public string Name { get; private set; }
+    public string? Description { get; private set; }
+    public string Feedback { get; private set; }
 
     private ErrorType(Guid topicId, string code, string name, string? description, string feedback)
     {
@@ -23,9 +22,6 @@ public sealed partial class ErrorType : BaseEntity, IAggregateRoot
         Description = description;
         Feedback = feedback;
     }
-
-    [GeneratedRegex(@"^[a-z][a-z0-9]*(_[a-z0-9]+)*\z")]
-    private static partial Regex CodeFormat();
 
     public static ErrorType Create(Guid topicId, string code, string name, string? description, string feedback)
     {
@@ -39,13 +35,24 @@ public sealed partial class ErrorType : BaseEntity, IAggregateRoot
             throw new DomainValidationException(ErrorTypeErrors.CodeRequired, "Error type code is required.");
         }
 
-        if (code.Length > CodeMaxLength || !CodeFormat().IsMatch(code))
+        if (!ContentCode.IsValid(code))
         {
             throw new DomainValidationException(
                 ErrorTypeErrors.CodeInvalid,
                 $"Error type code must start with a lowercase letter and have lowercase letters and digits separated by single underscores, with at most {CodeMaxLength} characters.");
         }
 
+        var (validName, validDescription, validFeedback) = ValidContent(name, description, feedback);
+
+        return new ErrorType(topicId, code, validName, validDescription, validFeedback);
+    }
+
+    /// <summary>Troca o nome, a descrição e o feedback, com as regras da criação. O tópico e o código são a chave natural e não mudam.</summary>
+    public void Revise(string name, string? description, string feedback) =>
+        (Name, Description, Feedback) = ValidContent(name, description, feedback);
+
+    private static (string Name, string? Description, string Feedback) ValidContent(string name, string? description, string feedback)
+    {
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new DomainValidationException(ErrorTypeErrors.NameRequired, "Error type name is required.");
@@ -65,6 +72,6 @@ public sealed partial class ErrorType : BaseEntity, IAggregateRoot
 
         var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 
-        return new ErrorType(topicId, code, trimmedName, trimmedDescription, feedback);
+        return (trimmedName, trimmedDescription, feedback);
     }
 }
