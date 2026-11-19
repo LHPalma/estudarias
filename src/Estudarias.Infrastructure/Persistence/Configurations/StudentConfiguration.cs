@@ -1,4 +1,5 @@
 using Estudarias.Domain.Students;
+using Estudarias.Domain.Topics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -29,7 +30,35 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
                 value => value == "control" ? ExperimentalGroup.Control : ExperimentalGroup.Diagnostic)
             .IsRequired();
 
-        // O progresso por tópico (student_topic) depende da tabela de tópicos e entra com o mapeamento do Topic.
-        builder.Ignore(student => student.Progress);
+        // O progresso por tópico é parte do agregado: carrega e grava junto com o aluno. A linha só existe a partir do desbloqueio
+        // (tópico sem linha está bloqueado), e o status não é coluna: deriva de mastered_at.
+        builder.OwnsMany(student => student.Progress, progress =>
+        {
+            progress.ToTable("student_topic", table =>
+                table.HasCheckConstraint(
+                    "ck_student_topic_mastered_after_unlocked", "mastered_at IS NULL OR mastered_at >= unlocked_at"));
+
+            progress.WithOwner().HasForeignKey("StudentId");
+            progress.Property<Guid>("StudentId").HasColumnName("student_id");
+
+            progress.HasKey(value => value.Id);
+            progress.Property(value => value.Id).HasColumnName("id").ValueGeneratedNever();
+
+            progress.Property(value => value.TopicId).HasColumnName("topic_id");
+            progress.HasOne<Topic>().WithMany().HasForeignKey(value => value.TopicId).OnDelete(DeleteBehavior.Restrict);
+            progress.HasIndex(value => value.TopicId).HasDatabaseName("ix_student_topic_topic_id");
+
+            // Um progresso por aluno e tópico. Desbloqueios simultâneos do mesmo tópico: o segundo é recusado pelo banco. O índice
+            // começa pelo student_id, então também serve à ligação com o aluno.
+            progress.HasIndex("StudentId", nameof(TopicProgress.TopicId))
+                .IsUnique()
+                .HasDatabaseName("ux_student_topic_student_id_topic_id");
+
+            progress.Property(value => value.UnlockedAt).HasColumnName("unlocked_at");
+            progress.Property(value => value.MasteredAt).HasColumnName("mastered_at");
+            progress.Ignore(value => value.Status);
+        });
+
+        builder.Navigation(student => student.Progress).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

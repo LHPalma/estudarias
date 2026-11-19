@@ -1,8 +1,10 @@
+using Estudarias.Domain.Attempts;
 using Estudarias.Domain.ErrorTypes;
 using Estudarias.Domain.Exercises;
 using Estudarias.Domain.Flashcards;
 using Estudarias.Domain.Identity;
 using Estudarias.Domain.Lessons;
+using Estudarias.Domain.StudentFlashcards;
 using Estudarias.Domain.Students;
 using Estudarias.Domain.Topics;
 
@@ -33,4 +35,10 @@ public interface IApplicationDbContext
     IQueryable<Exercise> Exercises { get; }
 
     IQueryable<Flashcard> Flashcards { get; }
+
+    /// <summary>As tentativas: a fonte da nota, do histórico e do estado da lição.</summary>
+    IQueryable<Attempt> Attempts { get; }
+
+    /// <summary>Os cartões de revisão dos alunos: a fonte das revisões do dia.</summary>
+    IQueryable<StudentFlashcard> StudentFlashcards { get; }
 }

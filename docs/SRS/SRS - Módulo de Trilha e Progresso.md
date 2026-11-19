@@ -1,6 +1,6 @@
 # SRS — Módulo de Trilha e Progresso (Trilha, Tópico, Lição, Nota, Domínio e Desbloqueio)
 
-**Status:** Rascunho. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). Faltam a persistência do progresso (#84), os endpoints `GET /trail` (#86), `GET /topics/{id}` e `GET /lessons/{id}` (#87), a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). A persistência do progresso (#84) está implementada (tabela `student_topic`, Seção 8.2). Faltam os endpoints `GET /trail` (#86), `GET /topics/{id}` e `GET /lessons/{id}` (#87), a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 **Pendência de decisão:** PEND-TRL-01 (Seção 7.5).
 
@@ -189,7 +189,7 @@ Todo recurso traz `links`; uma ação só aparece quando é permitida (RN-TRL-09
 
 ### RF-TRL-10: Persistência do progresso (#84)
 
-`Student.Progress` (`TopicProgress`) é mapeado na tabela `student_topic`: uma linha **só a partir do desbloqueio**, com `unlocked_at` e `mastered_at` (nulo enquanto disponível), e índice único `(student_id, topic_id)`. `IStudentRepository` passa a carregar o progresso junto do aluno (hoje o `Progress` volta sempre vazio).
+`Student.Progress` (`TopicProgress`) é mapeado na tabela `student_topic`: uma linha **só a partir do desbloqueio**, com `unlocked_at` e `mastered_at` (nulo enquanto disponível), e índice único `(student_id, topic_id)`. `IStudentRepository.FindAsync` carrega o aluno com o progresso, rastreado para a escrita. O progresso é mapeado como coleção do agregado (*owned*): vem junto com o aluno, sem `Include`, e um desbloqueio ou domínio feito no aluno carregado é gravado pela `IUnitOfWork`.
 
 ---
 
@@ -422,7 +422,7 @@ A nota, o status de lição e as contagens **não são colunas**: derivam das te
 | `unlocked_at` | timestamptz NOT NULL | Fato gravado; uma vez preenchido, nunca volta a bloquear (RN-TRL-05) |
 | `mastered_at` | timestamptz, nulo | Primeira vez que o aluno dominou o tópico; nulo = disponível |
 
-Índice único `(student_id, topic_id)`. A linha só existe **a partir do desbloqueio**: tópico sem linha está bloqueado. Status derivado: `mastered_at IS NULL` = disponível; preenchido = dominado.
+Índice único `ux_student_topic_student_id_topic_id` em `(student_id, topic_id)`: dois desbloqueios simultâneos do mesmo tópico gravam uma linha só. `ck_student_topic_mastered_after_unlocked`: `CHECK (mastered_at IS NULL OR mastered_at >= unlocked_at)`. `topic_id` é `ON DELETE RESTRICT` (um tópico liberado para algum aluno não some); `student_id` é `ON DELETE CASCADE`, porque o progresso é parte do agregado `Student` (como as coleções do conteúdo, SRS de Conteúdo, Seção 8.3). A linha só existe **a partir do desbloqueio**: tópico sem linha está bloqueado. Status derivado: `mastered_at IS NULL` = disponível; preenchido = dominado.
 
 ### 8.3 Catálogo de erros
 
@@ -443,7 +443,7 @@ Os demais erros de entrada e de sessão seguem o contrato (`docs/api.md`): `401`
 | RF-TRL-05, RN-TRL-01, RN-TRL-03 (cálculo), FA-TRL-09 | Domain: #70 (PR #77) | `TopicScoreTests` |
 | RF-TRL-06, RN-TRL-04 a RN-TRL-07 | Domain: #71 (PR #77) | `TopicMasteryTests` |
 | Progresso por tópico no aluno (`Unlock`, `MarkMastered`, `StatusOf`), RN-TRL-05 | Domain: #14 (PR #15) | `StudentTests` |
-| RF-TRL-10 | #84 (a fazer) | Integração: o progresso volta com o aluno (desbloqueio e domínio com as datas) |
+| RF-TRL-10 | #84: `StudentConfiguration` (coleção owned em `student_topic`), `StudentRepository.FindAsync`, migration `AddProgress` | Integração: o progresso volta com o aluno (desbloqueio e domínio com as datas) |
 | RF-TRL-01, RN-TRL-07, RN-TRL-10, FA-TRL-01, FA-TRL-02, RNF-TRL-06 | #86 (a fazer) | Unidade do caso de uso; funcional: aluno novo vê a raiz disponível |
 | RF-TRL-02, RF-TRL-09, RN-TRL-02, RN-TRL-16, FA-TRL-08 | #86 (a fazer) | Integração da leitura (status, nota, revisões vencidas); funcionais: `401` sem token, os links |
 | RF-TRL-03, RF-TRL-04, RN-TRL-08, RN-TRL-11, FA-TRL-03 a FA-TRL-06, RNF-TRL-03 | #87 (a fazer) | Integração e funcionais: tópico disponível e bloqueado; lição sem gabarito (o JSON não tem campo de correção); `403` e `404` |

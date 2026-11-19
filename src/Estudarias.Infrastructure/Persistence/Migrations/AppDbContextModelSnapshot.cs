@@ -23,6 +23,49 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Estudarias.Domain.Attempts.Attempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AlternativeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alternative_id");
+
+                    b.Property<DateTimeOffset>("AnsweredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("answered_at");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exercise_id");
+
+                    b.Property<int?>("ResponseSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("response_seconds");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlternativeId")
+                        .HasDatabaseName("ix_attempt_alternative_id");
+
+                    b.HasIndex("ExerciseId")
+                        .HasDatabaseName("ix_attempt_exercise_id");
+
+                    b.HasIndex("StudentId", "ExerciseId")
+                        .HasDatabaseName("ix_attempt_student_id_exercise_id");
+
+                    b.ToTable("attempt", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_attempt_response_seconds", "response_seconds IS NULL OR response_seconds >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Estudarias.Domain.ErrorTypes.ErrorType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -285,6 +328,57 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Estudarias.Domain.StudentFlashcards.StudentFlashcard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("algorithm");
+
+                    b.Property<Guid>("FlashcardId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("flashcard_id");
+
+                    b.Property<DateTimeOffset>("NextReviewAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_review_at");
+
+                    b.Property<Guid?>("OriginAttemptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("origin_attempt_id");
+
+                    b.Property<string>("SchedulingState")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("scheduling_state");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FlashcardId")
+                        .HasDatabaseName("ix_student_flashcard_flashcard_id");
+
+                    b.HasIndex("OriginAttemptId")
+                        .HasDatabaseName("ix_student_flashcard_origin_attempt_id");
+
+                    b.HasIndex("StudentId", "FlashcardId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_student_flashcard_student_id_flashcard_id");
+
+                    b.HasIndex("StudentId", "NextReviewAt")
+                        .HasDatabaseName("ix_student_flashcard_student_id_next_review_at");
+
+                    b.ToTable("student_flashcard", (string)null);
+                });
+
             modelBuilder.Entity("Estudarias.Domain.Students.Student", b =>
                 {
                     b.Property<Guid>("Id")
@@ -336,6 +430,21 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_topic_slug");
 
                     b.ToTable("topic", (string)null);
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Attempts.Attempt", b =>
+                {
+                    b.HasOne("Estudarias.Domain.Exercises.Exercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Estudarias.Domain.Students.Student", null)
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Estudarias.Domain.ErrorTypes.ErrorType", b =>
@@ -444,6 +553,77 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TopicId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.StudentFlashcards.StudentFlashcard", b =>
+                {
+                    b.HasOne("Estudarias.Domain.Flashcards.Flashcard", null)
+                        .WithMany()
+                        .HasForeignKey("FlashcardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Estudarias.Domain.Attempts.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("OriginAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Estudarias.Domain.Students.Student", null)
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Students.Student", b =>
+                {
+                    b.OwnsMany("Estudarias.Domain.Students.TopicProgress", "Progress", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset?>("MasteredAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("mastered_at");
+
+                            b1.Property<Guid>("StudentId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("student_id");
+
+                            b1.Property<Guid>("TopicId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("topic_id");
+
+                            b1.Property<DateTimeOffset>("UnlockedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("unlocked_at");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("TopicId")
+                                .HasDatabaseName("ix_student_topic_topic_id");
+
+                            b1.HasIndex("StudentId", "TopicId")
+                                .IsUnique()
+                                .HasDatabaseName("ux_student_topic_student_id_topic_id");
+
+                            b1.ToTable("student_topic", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_student_topic_mastered_after_unlocked", "mastered_at IS NULL OR mastered_at >= unlocked_at");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("StudentId");
+
+                            b1.HasOne("Estudarias.Domain.Topics.Topic", null)
+                                .WithMany()
+                                .HasForeignKey("TopicId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired();
+                        });
+
+                    b.Navigation("Progress");
                 });
 
             modelBuilder.Entity("Estudarias.Domain.Topics.Topic", b =>
