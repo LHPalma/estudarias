@@ -145,7 +145,7 @@ Os quatro endpoints são os únicos abertos da API (fora o `/health`). Todos rec
 
 | Endpoint | Corpo | Resposta |
 |---|---|---|
-| `POST /auth/register` | `name`, `email`, `password` | `201` com a sessão (o aluno já entra logado) |
+| `POST /auth/register` | `name`, `email`, `password` | `201` com a sessão (o aluno já entra logado) e o `Location` do `/me` |
 | `POST /auth/login` | `email`, `password` | `200` com a sessão |
 | `POST /auth/refresh` | `refreshToken` | `200` com a sessão nova; o token usado deixa de valer |
 | `POST /auth/logout` | `refreshToken` | `204`, também para um token desconhecido ou já revogado |
@@ -183,10 +183,12 @@ Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `cod
 ```json
 {
   "user": { "id": "0192f0c4-...", "email": "ana@example.com", "role": "Student" },
-  "student": { "id": "0192f0c4-...", "name": "Ana Souza", "experimentalGroup": "Diagnostic" }
+  "student": { "id": "0192f0c4-...", "name": "Ana Souza", "experimentalGroup": "Diagnostic" },
+  "links": [{ "href": "http://localhost:5007/me", "rel": "self", "method": "GET" }]
 }
 ```
 
+- `links` são as ações a partir do recurso, com URL absoluta (veja o [ADR-004](docs/adr/0004-action-links.md)). Por enquanto só o `self`; o `trail` entra com o `GET /trail`.
 - `user` é a conta de acesso, e `student` é o perfil de estudo ligado a ela, separados como no domínio. `student.id` é o `studentId` que o login devolve.
 - `experimentalGroup` é `Control` ou `Diagnostic` e diz ao app qual versão da experiência mostrar. O grupo é sorteado no cadastro e não muda.
 - O progresso por tópico ainda não faz parte da resposta (o `student_topic` não está mapeado).
