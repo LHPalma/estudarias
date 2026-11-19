@@ -21,6 +21,7 @@ public sealed class AuthController(
     LogoutHandler logout) : ControllerBase
 {
     /// <summary>O aluno cria a própria conta e já entra logado.</summary>
+    /// <remarks>O <c>Location</c> da resposta aponta para o <c>/me</c>, o perfil que o cadastro criou.</remarks>
     [HttpPost("register", Name = "Register")]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -30,8 +31,9 @@ public sealed class AuthController(
         var payload = await register.Handle(
             new RegisterStudentCommand(request.Name!, request.Email!, request.Password!), cancellationToken);
 
-        // Sem Location: ainda não há um recurso de conta para apontar (o perfil e os links entram com o HATEOAS, #8).
-        return StatusCode(StatusCodes.Status201Created, AuthResponse.From(payload));
+        // O recurso criado é o perfil de quem acabou de entrar. O /me não tem id na rota (o aluno é sempre o dono do token), então
+        // a mesma URL serve a qualquer aluno, e o Location vale com o accessToken desta resposta.
+        return CreatedAtRoute(MeController.GetMeRoute, routeValues: null, AuthResponse.From(payload));
     }
 
     /// <summary>Troca e-mail e senha por uma sessão nova.</summary>

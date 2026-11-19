@@ -22,7 +22,7 @@ public class RegisterEndpointTests(PostgresFixture postgres) : AuthEndpointsTest
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Null(response.Headers.Location);
+        Assert.Equal(new Uri("http://localhost/me"), response.Headers.Location);
         Assert.Equal(3, AccessTokenOf(session).Split('.').Length);
         Assert.Equal(Factory.Clock.GetUtcNow().AddMinutes(15), session.GetProperty("accessTokenExpiresAt").GetDateTimeOffset());
         Assert.Matches("^[0-9a-f]{64}$", RefreshTokenOf(session));
@@ -34,6 +34,23 @@ public class RegisterEndpointTests(PostgresFixture postgres) : AuthEndpointsTest
         Assert.Equal(user.GetProperty("studentId").GetGuid(), await ScalarAsync<Guid>("SELECT id FROM student"));
         Assert.Equal("Ana", await ScalarAsync<string>("SELECT name FROM student"));
         Assert.Equal(1, await CountAsync("refresh_token"));
+    }
+
+    [Fact(DisplayName = "O Location do cadastro leva ao perfil criado, aberto com o accessToken da própria resposta")]
+    public async Task Register_Location_OpensTheCreatedProfile()
+    {
+        // Arrange
+        var response = await PostAsync("/auth/register", new { name = "Ana", email = "ana@example.com", password = StrongPassword });
+        var session = await JsonAsync(response);
+
+        // Act
+        var profile = await GetWithTokenAsync(response.Headers.Location!.ToString(), AccessTokenOf(session));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
+        Assert.Equal(
+            session.GetProperty("user").GetProperty("studentId").GetGuid(),
+            (await JsonAsync(profile)).GetProperty("student").GetProperty("id").GetGuid());
     }
 
     [Fact(DisplayName = "RF-01 / RF-05: o refresh token da resposta é gravado só pelo hash, e a senha vira um hash argon2id")]

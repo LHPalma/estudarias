@@ -15,7 +15,7 @@ Toda a regra fica no servidor. O app não calcula nota, desbloqueio nem agendame
 
 ### Links
 
-Cada recurso traz `links`: as ações que o aluno pode fazer naquele estado (formato da #8, sem HAL nem JSON:API). **Uma ação só aparece quando é permitida**; o app mostra o botão se o link existe.
+Cada recurso traz `links`: as ações que o aluno pode fazer naquele estado (formato da #8, sem HAL nem JSON:API, decidido no [ADR-004](adr/0004-action-links.md)). **Uma ação só aparece quando é permitida**; o app mostra o botão se o link existe.
 
 ```json
 { "href": "http://localhost:5007/topics/0192f0c4-0001-7000-8000-000000000002", "rel": "topic", "method": "GET" }
