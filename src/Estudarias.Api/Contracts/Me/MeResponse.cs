@@ -1,3 +1,4 @@
+using Estudarias.Api.Links;
 using Estudarias.Application.Students.Queries;
 
 namespace Estudarias.Api.Contracts.Me;
@@ -10,12 +11,14 @@ public sealed record MeStudentResponse(Guid Id, string Name, string Experimental
 
 /// <summary>
 /// O perfil de quem está logado: a conta (<c>user</c>) e o aluno ligado a ela (<c>student</c>), separados como no domínio. O
-/// <c>student.id</c> é o <c>studentId</c> que o login devolve. O progresso por tópico ainda não faz parte da resposta.
+/// <c>student.id</c> é o <c>studentId</c> que o login devolve. O progresso por tópico ainda não faz parte da resposta. Os
+/// <c>links</c> são montados pelo controller, que conhece as rotas (ADR-004).
 /// </summary>
-public sealed record MeResponse(MeUserResponse User, MeStudentResponse Student)
+public sealed record MeResponse(MeUserResponse User, MeStudentResponse Student, IReadOnlyList<Link> Links)
 {
-    public static MeResponse From(ProfileResponse profile) =>
+    public static MeResponse From(ProfileResponse profile, IReadOnlyList<Link> links) =>
         new(
             new MeUserResponse(profile.User.Id, profile.User.Email, profile.User.Role.ToString()),
-            new MeStudentResponse(profile.Student.Id, profile.Student.Name, profile.Student.ExperimentalGroup.ToString()));
+            new MeStudentResponse(profile.Student.Id, profile.Student.Name, profile.Student.ExperimentalGroup.ToString()),
+            links);
 }

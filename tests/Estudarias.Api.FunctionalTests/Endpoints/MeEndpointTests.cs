@@ -32,6 +32,38 @@ public class MeEndpointTests(PostgresFixture postgres) : AuthEndpointsTests(post
         Assert.Equal("Ana Souza", me.GetProperty("student").GetProperty("name").GetString());
     }
 
+    [Fact(DisplayName = "O perfil traz o link self, com a URL absoluta do próprio /me")]
+    public async Task Me_LinksToItself()
+    {
+        // Arrange
+        var session = await RegisterAsync();
+
+        // Act
+        var me = await JsonAsync(await GetWithTokenAsync("/me", AccessTokenOf(session)));
+
+        // Assert
+        var link = Assert.Single(me.GetProperty("links").EnumerateArray());
+        Assert.Equal(["href", "method", "rel"], link.EnumerateObject().Select(property => property.Name).Order());
+        Assert.Equal("self", link.GetProperty("rel").GetString());
+        Assert.Equal("GET", link.GetProperty("method").GetString());
+        Assert.Equal("http://localhost/me", link.GetProperty("href").GetString());
+    }
+
+    [Fact(DisplayName = "O link self do perfil leva de volta ao mesmo perfil")]
+    public async Task Me_SelfLink_ReturnsTheSameProfile()
+    {
+        // Arrange
+        var session = await RegisterAsync();
+        var me = await JsonAsync(await GetWithTokenAsync("/me", AccessTokenOf(session)));
+        var self = me.GetProperty("links")[0].GetProperty("href").GetString()!;
+
+        // Act
+        var followed = await JsonAsync(await GetWithTokenAsync(self, AccessTokenOf(session)));
+
+        // Assert
+        Assert.Equal(me.GetRawText(), followed.GetRawText());
+    }
+
     [Theory(DisplayName = "O grupo experimental da resposta é o que está gravado no aluno")]
     [InlineData("control", "Control")]
     [InlineData("diagnostic", "Diagnostic")]
@@ -58,7 +90,7 @@ public class MeEndpointTests(PostgresFixture postgres) : AuthEndpointsTests(post
         var me = await JsonAsync(await GetWithTokenAsync("/me", AccessTokenOf(session)));
 
         // Assert
-        Assert.Equal(["student", "user"], me.EnumerateObject().Select(property => property.Name).Order());
+        Assert.Equal(["links", "student", "user"], me.EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["email", "id", "role"], me.GetProperty("user").EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["experimentalGroup", "id", "name"], me.GetProperty("student").EnumerateObject().Select(property => property.Name).Order());
     }
