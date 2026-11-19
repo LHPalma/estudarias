@@ -25,7 +25,9 @@ Enum flashcard_origin {
 }
 
 // ---------- Conteúdo (vem do seed) ----------
-// Toda chave estrangeira do conteúdo é ON DELETE RESTRICT: tentativas e cartões dependem dele, então nada some em cascata.
+// As chaves estrangeiras entre itens do conteúdo são ON DELETE RESTRICT: tentativas e cartões dependem dele, então nada some em
+// cascata. As exceções são as linhas do próprio agregado (topic_prerequisite.topic_id e alternative.exercise_id), que saem com o
+// dono (ON DELETE CASCADE), como toda coleção owned do EF Core.
 // Os enums são gravados como texto em minúsculas, com uma CHECK que recusa qualquer outro valor.
 
 Table topic {

@@ -209,7 +209,7 @@ Além do Domain, o banco recusa o que o conteúdo não pode ter:
 
 - índices únicos: `topic.slug`, `(topic_id, code)` em `error_type`, `(topic_id, position)` em `lesson` (a ordem da lição; Seção 8.3), **uma alternativa correta por exercício** (índice parcial) e **um flashcard gerado por tipo de erro** (índice parcial);
 - `CHECK`s: pré-requisito diferente do próprio tópico, alternativa correta sem tipo de erro (e errada com), origem do flashcard coerente com o tipo de erro;
-- chaves estrangeiras com **`ON DELETE RESTRICT`**: o conteúdo não some em cascata, porque tentativas e cartões dependem dele;
+- chaves estrangeiras com **`ON DELETE RESTRICT`**: o conteúdo não some em cascata, porque tentativas e cartões dependem dele (as linhas do próprio agregado, pré-requisitos e alternativas, saem com o dono; Seção 8.3);
 - enums gravados em minúsculas, com a conversão explícita, como no `student`.
 
 ### RN-CNT-11: Chave natural e identidade estável
@@ -397,7 +397,7 @@ As tabelas seguem o `docs/schema.dbml`, já em inglês para o conteúdo desde a 
 | `alternative` | `ck_alternative_error_type`: `CHECK ((is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL))`; índice único parcial `ux_alternative_exercise_id_correct` em `(exercise_id) WHERE is_correct` (no máximo uma correta); índices `ix_alternative_exercise_id` e `ix_alternative_error_type_id`; "tipo de erro do mesmo tópico" no validador (RN-CNT-09) |
 | `flashcard` | `ck_flashcard_origin`: `CHECK (origin IN ('manual', 'generated_by_error'))`; `ck_flashcard_error_type`: `CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL))`; índice único parcial `ux_flashcard_error_type_id_generated` em `(error_type_id) WHERE origin = 'generated_by_error'` (RN-CNT-07, RN-CNT-10); índice `ix_flashcard_topic_id`; `code` único (campo novo da #85; escopo de unicidade definido lá) |
 
-Todas as chaves estrangeiras são `ON DELETE RESTRICT`, inclusive as das linhas que fazem parte do agregado (`topic_prerequisite.topic_id` e `alternative.exercise_id`). Os enums (`difficulty`, `origin`) são gravados como texto em minúsculas, com a conversão explícita no mapeamento.
+Todas as chaves estrangeiras entre itens do conteúdo são `ON DELETE RESTRICT`. As duas exceções são as ligações de uma linha com o próprio agregado, `topic_prerequisite.topic_id` e `alternative.exercise_id`, que são `ON DELETE CASCADE` (Seção 8.3). Os enums (`difficulty`, `origin`) são gravados como texto em minúsculas, com a conversão explícita no mapeamento.
 
 ### 8.3 Decisões da persistência (#83)
 
@@ -405,8 +405,9 @@ Todas as chaves estrangeiras são `ON DELETE RESTRICT`, inclusive as das linhas 
 - **O pré-requisito é um tipo próprio no Domain (`TopicPrerequisite`).** O EF Core não grava uma `List<Guid>` numa tabela de junção, só numa coluna (JSON ou array), o que perderia a PK, a `CHECK` e a chave estrangeira de `topic_prerequisite`. O `Topic` guarda os pré-requisitos como `TopicPrerequisite` num campo privado, mapeado como coleção do agregado (*owned*), e `Topic.Prerequisites` continua devolvendo só os ids: o `TopicMastery` e os testes do Domain não mudaram.
 - **Numa consulta, os pré-requisitos são lidos pelo campo mapeado.** Como não há propriedade pública mapeada, a leitura usa `EF.Property<IEnumerable<TopicPrerequisite>>(topic, "_prerequisites")`, como documenta o `IApplicationDbContext`.
 - **As alternativas são parte do agregado `Exercise`.** Mapeadas como coleção *owned* na tabela `alternative`, carregam e gravam junto com o exercício, sem `Include`. O `Exercise` ganhou um construtor privado só com as propriedades simples, para o EF Core montá-lo ao ler; o `Create` continua sendo a única entrada com validação.
+- **As linhas do próprio agregado saem em cascata com o dono.** `topic_prerequisite.topic_id` e `alternative.exercise_id` são `ON DELETE CASCADE`, o comportamento padrão de uma coleção *owned* no EF Core. A primeira versão da #83 as deixava `RESTRICT`, mas o snapshot das migrations não consegue registrar outro comportamento nessa ligação: o modelo ficava sempre "com mudanças pendentes", e o EF Core se recusava a migrar o banco. A proteção do RN-CNT-10 continua onde importa: um tópico exigido por outro é barrado pela FK de `prerequisite_id`, e as alternativas ficam protegidas pelas FKs que apontam para elas (a tentativa, na #84), que são `RESTRICT`. O teste `MigrationsTests` (em `Infrastructure.UnitTests`, sem banco) compara o modelo com o snapshot e quebra se um mapeamento ficar sem migration.
 - **O conteúdo não tem repositório de escrita** (RN-CNT-14). A Application lê pelas visões `AsNoTracking` do `IApplicationDbContext` (`Topics`, `ErrorTypes`, `Lessons`, `Exercises`, `Flashcards`); quem grava é a carga da #85, pelo `AppDbContext`.
-- **Testes** (`ContentConfigurationTests`, PostgreSQL real via Testcontainers, RNF-CNT-04): ida e volta de cada agregado (com alternativas e pré-requisitos), a leitura dos pré-requisitos numa consulta, a leitura sem rastreamento, cada restrição da tabela acima provocada por SQL direto (conferindo o código do erro e o nome da restrição), os casos que devem ser aceitos (o mesmo `code` de tipo de erro em outro tópico, várias alternativas erradas) e o `ON DELETE RESTRICT` de cada item referenciado.
+- **Testes** (`ContentConfigurationTests`, PostgreSQL real via Testcontainers, RNF-CNT-04): ida e volta de cada agregado (com alternativas e pré-requisitos), a leitura dos pré-requisitos numa consulta, a leitura sem rastreamento, cada restrição da tabela acima provocada por SQL direto (conferindo o código do erro e o nome da restrição), os casos que devem ser aceitos (o mesmo `code` de tipo de erro em outro tópico, várias alternativas erradas), o `ON DELETE RESTRICT` de cada item referenciado e a cascata das alternativas com o exercício.
 
 ### 8.4 Catálogo de erros
 
@@ -432,7 +433,7 @@ São erros de domínio da construção dos agregados. **Nenhum vira resposta HTT
 | RF-CNT-03, RN-CNT-05, RN-CNT-06 | Domain: #29 (PR #77) | `ExerciseTests`; `AlternativeTests` |
 | RF-CNT-04, RN-CNT-07 | Domain: #31 (PR #67) | `FlashcardTests` |
 | Catálogo de erros (Seção 8.4) | Domain: #12 (PR #13) | `DomainErrorCatalogTests` |
-| RF-CNT-05, RN-CNT-10, RN-CNT-14 | #83: configurações em `Infrastructure/Persistence/Configurations`, `TopicPrerequisite` no Domain, visões no `IApplicationDbContext` e migration `AddContent` (decisões na Seção 8.3) | `ContentConfigurationTests`: ida e volta de cada agregado; cada restrição recusada pelo banco; `ON DELETE RESTRICT` |
+| RF-CNT-05, RN-CNT-10, RN-CNT-14 | #83: configurações em `Infrastructure/Persistence/Configurations`, `TopicPrerequisite` no Domain, visões no `IApplicationDbContext` e migration `AddContent` (decisões na Seção 8.3) | `ContentConfigurationTests`: ida e volta de cada agregado; cada restrição recusada pelo banco; `ON DELETE RESTRICT`. `MigrationsTests`: o modelo bate com a migration |
 | RF-CNT-06, RN-CNT-11, RN-CNT-12, RN-CNT-13, FA-CNT-06, FA-CNT-07 | #85 (a fazer) | Integração da carga: carga inicial, recarga idempotente, arquivo inválido sem gravar nada |
 | RF-CNT-07, RN-CNT-08, RN-CNT-09, FA-CNT-01 a FA-CNT-05 | #85 (a fazer) | Testes do validador, uma regra por teste |
 | RF-CNT-08 | #85 (a fazer) | Carga dos dois arquivos de conteúdo contra o PostgreSQL real |
