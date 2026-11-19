@@ -1,7 +1,8 @@
 // Estudarias — schema alvo da v1
 //
-// Nomes de tabelas e colunas em inglês (snake_case, no singular). As tabelas de identidade (student, app_user e refresh_token) já
-// estão em inglês e batem com a migration; as demais, ainda em português, passam para o inglês quando forem mapeadas (#42).
+// Nomes de tabelas e colunas em inglês (snake_case, no singular). As tabelas de identidade (student, app_user e refresh_token) e as
+// de conteúdo (topic, topic_prerequisite, error_type, lesson, exercise, alternative e flashcard) já estão em inglês e batem com as
+// migrations; as de progresso e revisão, ainda em português, passam para o inglês quando forem mapeadas (#84).
 
 Enum experimental_group {
   control
@@ -12,81 +13,100 @@ Enum user_role {
   student
 }
 
-Enum dificuldade {
-  facil
-  medio
-  dificil
+Enum difficulty {
+  easy
+  medium
+  hard
 }
 
-Enum origem_flashcard {
+Enum flashcard_origin {
   manual
-  gerado_por_erro
+  generated_by_error
 }
 
 // ---------- Conteúdo (vem do seed) ----------
+// Toda chave estrangeira do conteúdo é ON DELETE RESTRICT: tentativas e cartões dependem dele, então nada some em cascata.
+// Os enums são gravados como texto em minúsculas, com uma CHECK que recusa qualquer outro valor.
 
-Table topico {
+Table topic {
   id uuid [pk]
-  nome "varchar(100)" [not null]
-  slug "varchar(100)" [not null, unique, note: 'minúsculas, dígitos e hífens entre grupos: ^[a-z0-9]+(-[a-z0-9]+)*$']
+  name "varchar(100)" [not null]
+  slug "varchar(100)" [not null, unique, note: 'minúsculas, dígitos e hífens entre grupos: ^[a-z0-9]+(-[a-z0-9]+)*$. Chave natural na carga. Índice ux_topic_slug']
 }
 
-Table pre_requisito {
-  topico_id uuid [not null, ref: > topico.id, note: 'tópico que exige']
-  requisito_id uuid [not null, ref: > topico.id, note: 'tópico exigido']
+Table topic_prerequisite {
+  topic_id uuid [not null, ref: > topic.id, note: 'tópico que exige']
+  prerequisite_id uuid [not null, ref: > topic.id, note: 'tópico exigido. Índice ix_topic_prerequisite_prerequisite_id']
 
   indexes {
-    (topico_id, requisito_id) [pk]
+    (topic_id, prerequisite_id) [pk]
   }
 
-  Note: 'CHECK (topico_id <> requisito_id). Ciclos são barrados pelo validador do seed.'
+  Note: 'Constraint ck_topic_prerequisite_not_self: CHECK (topic_id <> prerequisite_id). Ciclos são barrados pelo validador do seed.'
 }
 
-Table tipo_erro {
+Table error_type {
   id uuid [pk]
-  codigo "varchar(100)" [not null, note: 'minúsculas e dígitos com _ entre grupos, começando por letra: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$']
-  nome "varchar(100)" [not null]
-  descricao text
+  topic_id uuid [not null, ref: > topic.id]
+  code "varchar(100)" [not null, note: 'minúsculas e dígitos com _ entre grupos, começando por letra: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$']
+  name "varchar(100)" [not null]
+  description text
   feedback text [not null]
-  topico_id uuid [not null, ref: > topico.id]
 
   indexes {
-    (topico_id, codigo) [unique]
+    (topic_id, code) [unique, name: 'ux_error_type_topic_id_code']
   }
 }
 
-Table licao {
+Table lesson {
   id uuid [pk]
-  topico_id uuid [not null, ref: > topico.id]
-  ordem int [not null]
-  titulo "varchar(150)" [not null]
-  conteudo text [not null]
+  topic_id uuid [not null, ref: > topic.id]
+  position int [not null, note: 'a ordem da lição no tópico, a partir de 1 (ck_lesson_position: CHECK (position >= 1)). Não se chama order porque é palavra reservada do SQL']
+  title "varchar(150)" [not null]
+  content text [not null]
 
   indexes {
-    (topico_id, ordem) [unique]
+    (topic_id, position) [unique, name: 'ux_lesson_topic_id_position']
   }
 }
 
-Table exercicio {
+Table exercise {
   id uuid [pk]
-  licao_id uuid [not null, ref: > licao.id]
-  enunciado text [not null]
-  dificuldade dificuldade [not null]
+  lesson_id uuid [not null, ref: > lesson.id, note: 'Índice ix_exercise_lesson_id']
+  statement text [not null]
+  difficulty difficulty [not null, note: "ck_exercise_difficulty: CHECK (difficulty IN ('easy', 'medium', 'hard'))"]
 }
 
-Table alternativa {
+Table alternative {
   id uuid [pk]
-  exercicio_id uuid [not null, ref: > exercicio.id]
-  texto text [not null]
-  correta boolean [not null]
-  tipo_erro_id uuid [null, ref: > tipo_erro.id, note: 'NULL se correta']
+  exercise_id uuid [not null, ref: > exercise.id, note: 'Índice ix_alternative_exercise_id']
+  text text [not null]
+  is_correct boolean [not null]
+  error_type_id uuid [null, ref: > error_type.id, note: 'NULL se correta. Índice ix_alternative_error_type_id']
 
   Note: '''
-    CHECK ((correta AND tipo_erro_id IS NULL) OR (NOT correta AND tipo_erro_id IS NOT NULL)).
-    Índice único parcial em (exercicio_id) WHERE correta = true: no máximo 1 correta por exercício.
+    Parte do agregado Exercise: grava e carrega junto com ele.
+    Constraint ck_alternative_error_type: CHECK ((is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL)).
+    Índice único parcial ux_alternative_exercise_id_correct em (exercise_id) WHERE is_correct: no máximo 1 correta por exercício.
     O Domain também garante, ao criar o exercício: pelo menos 2 alternativas, exatamente 1 correta e texto sem
     repetição dentro do exercício (sem diferenciar maiúsculas).
-    "tipo_erro do mesmo tópico do exercício" fica no validador do seed.
+    "error_type do mesmo tópico do exercício" fica no validador do seed.
+  '''
+}
+
+Table flashcard {
+  id uuid [pk]
+  topic_id uuid [not null, ref: > topic.id, note: 'Índice ix_flashcard_topic_id']
+  question text [not null]
+  answer text [not null]
+  origin flashcard_origin [not null, note: "ck_flashcard_origin: CHECK (origin IN ('manual', 'generated_by_error'))"]
+  error_type_id uuid [null, ref: > error_type.id, note: 'preenchido quando origin = generated_by_error']
+
+  Note: '''
+    Global por error_type: um único flashcard generated_by_error por error_type.
+    Índice único parcial ux_flashcard_error_type_id_generated em (error_type_id) WHERE origin = 'generated_by_error'.
+    Constraint ck_flashcard_error_type: CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL)). O Domain garante o
+    mesmo por construção: o cartão manual nasce sem tipo de erro e o gerado por erro só nasce com um.
   '''
 }
 
@@ -140,7 +160,7 @@ Table student {
 Table aluno_topico {
   id uuid [pk]
   aluno_id uuid [not null, ref: > student.id]
-  topico_id uuid [not null, ref: > topico.id]
+  topico_id uuid [not null, ref: > topic.id]
   desbloqueado_em timestamptz [not null, note: 'fato gravado; uma vez preenchido, nunca volta a bloquear']
   dominado_em timestamptz [null, note: 'primeira vez que o aluno dominou o tópico; null = disponível']
 
@@ -157,8 +177,8 @@ Table aluno_topico {
 Table tentativa {
   id uuid [pk]
   aluno_id uuid [not null, ref: > student.id]
-  exercicio_id uuid [not null, ref: > exercicio.id]
-  alternativa_id uuid [not null, ref: > alternativa.id]
+  exercicio_id uuid [not null, ref: > exercise.id]
+  alternativa_id uuid [not null, ref: > alternative.id]
   tempo_resposta_seg int [null, note: 'opcional; CHECK (tempo_resposta_seg >= 0), também garantido pelo Domain']
   timestamp timestamptz [not null]
 
@@ -167,23 +187,7 @@ Table tentativa {
   }
 }
 
-// ---------- Flashcards e revisão (SM-2) ----------
-
-Table flashcard {
-  id uuid [pk]
-  topico_id uuid [not null, ref: > topico.id]
-  pergunta text [not null]
-  resposta text [not null]
-  origem origem_flashcard [not null]
-  tipo_erro_id uuid [null, ref: > tipo_erro.id, note: 'preenchido quando origem = gerado_por_erro']
-
-  Note: '''
-    Global por tipo_erro: um único flashcard gerado_por_erro por tipo_erro.
-    Índice único parcial em (tipo_erro_id) WHERE origem = 'gerado_por_erro'.
-    CHECK ((origem = 'gerado_por_erro') = (tipo_erro_id IS NOT NULL)). O Domain garante o mesmo por construção: o cartão
-    manual nasce sem tipo de erro e o gerado por erro só nasce com um.
-  '''
-}
+// ---------- Revisão (SM-2) ----------
 
 Table aluno_flashcard {
   id uuid [pk]
@@ -204,20 +208,20 @@ Table aluno_flashcard {
 
 // ---------- Records: dados de exemplo (Frações) ----------
 
-Records topico(id, nome, slug) {
+Records topic(id, name, slug) {
   '0192f0c4-0001-7000-8000-000000000001', 'Equações do 1º grau', 'equacoes-1-grau'
   '0192f0c4-0001-7000-8000-000000000002', 'Frações', 'fracoes'
   '0192f0c4-0001-7000-8000-000000000003', 'Operações básicas', 'operacoes-basicas'
   '0192f0c4-0001-7000-8000-000000000004', 'Porcentagem', 'porcentagem'
 }
 
-Records pre_requisito(topico_id, requisito_id) {
+Records topic_prerequisite(topic_id, prerequisite_id) {
   '0192f0c4-0001-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002'
   '0192f0c4-0001-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000003'
   '0192f0c4-0001-7000-8000-000000000004', '0192f0c4-0001-7000-8000-000000000002'
 }
 
-Records tipo_erro(id, codigo, nome, feedback, topico_id) {
+Records error_type(id, code, name, feedback, topic_id) {
   '0192f0c4-0002-7000-8000-000000000001', 'inverte_fracao', 'Inversão de numerador e denominador', 'O denominador indica em quantas partes iguais o todo foi dividido.', '0192f0c4-0001-7000-8000-000000000002'
   '0192f0c4-0002-7000-8000-000000000002', 'usa_resto_como_todo', 'Usa o que sobrou como denominador', 'O denominador é sempre o total de partes iguais.', '0192f0c4-0001-7000-8000-000000000002'
   '0192f0c4-0002-7000-8000-000000000003', 'soma_numeradores_e_denominadores', 'Soma numerador com numerador e denominador com denominador', 'Só dá para somar frações diretamente quando os denominadores são iguais.', '0192f0c4-0001-7000-8000-000000000002'
@@ -226,18 +230,18 @@ Records tipo_erro(id, codigo, nome, feedback, topico_id) {
   '0192f0c4-0002-7000-8000-000000000006', 'multiplica_em_vez_de_somar', 'Multiplica as frações em vez de somar', 'Somar e multiplicar frações são operações diferentes; aqui é preciso somar as partes.', '0192f0c4-0001-7000-8000-000000000002'
 }
 
-Records licao(id, topico_id, ordem, titulo, conteudo) {
+Records lesson(id, topic_id, position, title, content) {
   '0192f0c4-0003-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', 1, 'O que é uma fração', 'Uma fração representa partes de um todo.'
   '0192f0c4-0003-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 2, 'Soma de frações com denominadores diferentes', 'Para somar 1/2 + 1/3, encontre um denominador comum.'
 }
 
-Records exercicio(id, licao_id, enunciado, dificuldade) {
-  '0192f0c4-0004-7000-8000-000000000001', '0192f0c4-0003-7000-8000-000000000001', 'Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?', 'facil'
-  '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0003-7000-8000-000000000002', 'Quanto é 1/2 + 1/3?', 'medio'
+Records exercise(id, lesson_id, statement, difficulty) {
+  '0192f0c4-0004-7000-8000-000000000001', '0192f0c4-0003-7000-8000-000000000001', 'Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?', 'easy'
+  '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0003-7000-8000-000000000002', 'Quanto é 1/2 + 1/3?', 'medium'
 }
 
-// tipo_erro_id vazio = NULL (alternativa correta)
-Records alternativa(id, exercicio_id, texto, correta, tipo_erro_id) {
+// error_type_id vazio = NULL (alternativa correta)
+Records alternative(id, exercise_id, text, is_correct, error_type_id) {
   '0192f0c4-0005-7000-8000-000000000001', '0192f0c4-0004-7000-8000-000000000001', '3/8', true, null
   '0192f0c4-0005-7000-8000-000000000002', '0192f0c4-0004-7000-8000-000000000001', '8/3', false, '0192f0c4-0002-7000-8000-000000000001'
   '0192f0c4-0005-7000-8000-000000000003', '0192f0c4-0004-7000-8000-000000000001', '3/5', false, '0192f0c4-0002-7000-8000-000000000002'
@@ -246,6 +250,11 @@ Records alternativa(id, exercicio_id, texto, correta, tipo_erro_id) {
   '0192f0c4-0005-7000-8000-000000000006', '0192f0c4-0004-7000-8000-000000000002', '2/5', false, '0192f0c4-0002-7000-8000-000000000003'
   '0192f0c4-0005-7000-8000-000000000007', '0192f0c4-0004-7000-8000-000000000002', '2/6', false, '0192f0c4-0002-7000-8000-000000000004'
   '0192f0c4-0005-7000-8000-000000000008', '0192f0c4-0004-7000-8000-000000000002', '1/6', false, '0192f0c4-0002-7000-8000-000000000006'
+}
+
+Records flashcard(id, topic_id, question, answer, origin, error_type_id) {
+  '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', 'Por que 1/2 + 1/3 não é 2/5?', 'Porque é preciso um denominador comum antes de somar os numeradores.', 'generated_by_error', '0192f0c4-0002-7000-8000-000000000003'
+  '0192f0c4-0009-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
 }
 
 // ---------- Records: estado de um aluno ----------
@@ -270,11 +279,6 @@ Records aluno_topico(id, aluno_id, topico_id, desbloqueado_em, dominado_em) {
 
 Records tentativa(id, aluno_id, exercicio_id, alternativa_id, tempo_resposta_seg, timestamp) {
   '0192f0c4-0008-7000-8000-000000000001', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0005-7000-8000-000000000006', 48, '2026-10-07 10:12:00-03'
-}
-
-Records flashcard(id, topico_id, pergunta, resposta, origem, tipo_erro_id) {
-  '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', 'Por que 1/2 + 1/3 não é 2/5?', 'Porque é preciso um denominador comum antes de somar os numeradores.', 'gerado_por_erro', '0192f0c4-0002-7000-8000-000000000003'
-  '0192f0c4-0009-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
 }
 
 Records aluno_flashcard(id, aluno_id, flashcard_id, tentativa_origem_id, algoritmo, estado_agendamento, proxima_revisao) {
