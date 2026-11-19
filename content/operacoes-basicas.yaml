@@ -1,0 +1,63 @@
+# Operações básicas: a raiz da trilha (sem pré-requisito). Curto de propósito: existe para a trilha ter por onde começar.
+# Formato e regras: docs/SRS/SRS - Módulo de Conteúdo.md (RF-CNT-06 e RF-CNT-07). Os códigos são a chave natural de cada item:
+# mudar um código cria um item novo, e o antigo continua no banco.
+
+slug: operacoes-basicas
+name: Operações básicas
+prerequisites: []
+
+errorTypes:
+  - code: esquece_o_vai_um
+    name: Esquece o "vai um"
+    description: Soma cada coluna, mas não leva a dezena para a coluna seguinte.
+    feedback: Quando a soma de uma coluna passa de 9, a dezena "vai um" para a coluna da esquerda.
+  - code: esquece_o_emprestimo
+    name: Esquece o empréstimo
+    description: Na coluna em que o algarismo de cima é menor, subtrai o menor do maior.
+    feedback: Quando o algarismo de cima é menor, pegue emprestada uma dezena da coluna da esquerda antes de subtrair.
+  - code: troca_a_operacao
+    name: Troca a operação
+    description: Subtrai quando era para somar, ou soma quando era para subtrair.
+    feedback: Confira o sinal antes de começar a conta.
+
+lessons:
+  - order: 1
+    title: Soma e subtração com reserva
+    content: |
+      Na soma, quando uma coluna passa de 9, a dezena "vai um" para a coluna da esquerda: 27 + 15 = 42.
+      Na subtração, quando o algarismo de cima é menor, ele pega uma dezena emprestada da coluna da esquerda: 52 − 17 = 35.
+    exercises:
+      - code: soma_com_vai_um
+        statement: Quanto é 27 + 15?
+        difficulty: easy
+        alternatives:
+          - text: "42"
+            correct: true
+          - text: "32"
+            errorType: esquece_o_vai_um
+          - text: "12"
+            errorType: troca_a_operacao
+      - code: subtracao_com_emprestimo
+        statement: Quanto é 52 − 17?
+        difficulty: easy
+        alternatives:
+          - text: "35"
+            correct: true
+          - text: "45"
+            errorType: esquece_o_emprestimo
+          - text: "69"
+            errorType: troca_a_operacao
+
+flashcards:
+  - code: por_que_vai_um
+    errorType: esquece_o_vai_um
+    question: Por que 27 + 15 não é 32?
+    answer: 'Porque 7 + 5 = 12, e a dezena desse 12 "vai um" para a coluna das dezenas: 2 + 1 + 1 = 4. O resultado é 42.'
+  - code: por_que_emprestimo
+    errorType: esquece_o_emprestimo
+    question: Por que 52 − 17 não é 45?
+    answer: Porque 2 é menor que 7. O 2 pega uma dezena emprestada e vira 12; 12 − 7 = 5, e 4 − 1 = 3. O resultado é 35.
+  - code: por_que_conferir_o_sinal
+    errorType: troca_a_operacao
+    question: Por que conferir o sinal antes de fazer a conta?
+    answer: Porque 27 + 15 e 27 − 15 dão 42 e 12. O sinal decide a operação, e a resposta muda inteira.
