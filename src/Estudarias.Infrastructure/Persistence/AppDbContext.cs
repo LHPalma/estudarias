@@ -1,4 +1,6 @@
 using Estudarias.Application.Common;
+using Estudarias.Domain.Attempts;
+using Estudarias.Domain.StudentFlashcards;
 using Estudarias.Domain.ErrorTypes;
 using Estudarias.Domain.Exercises;
 using Estudarias.Domain.Flashcards;
@@ -29,6 +31,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Flashcard> Flashcards => Set<Flashcard>();
 
+    // O uso do aluno: o progresso por tópico vem dentro do Student; as tentativas e os cartões são agregados próprios.
+    public DbSet<Attempt> Attempts => Set<Attempt>();
+
+    public DbSet<StudentFlashcard> StudentFlashcards => Set<StudentFlashcard>();
+
     // A visão de leitura do banco (IApplicationDbContext): sem rastreamento, então uma leitura nunca deixa entidade no contexto.
     IQueryable<Student> IApplicationDbContext.Students => Students.AsNoTracking();
 
@@ -43,6 +50,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     IQueryable<Exercise> IApplicationDbContext.Exercises => Exercises.AsNoTracking();
 
     IQueryable<Flashcard> IApplicationDbContext.Flashcards => Flashcards.AsNoTracking();
+
+    IQueryable<Attempt> IApplicationDbContext.Attempts => Attempts.AsNoTracking();
+
+    IQueryable<StudentFlashcard> IApplicationDbContext.StudentFlashcards => StudentFlashcards.AsNoTracking();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

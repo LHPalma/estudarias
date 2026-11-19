@@ -9,5 +9,5 @@ public sealed record ProfileResponse(ProfileUserResponse User, ProfileStudentRes
 /// <summary>A conta de acesso. Só o que o app precisa: o hash da senha nunca sai do banco numa leitura.</summary>
 public sealed record ProfileUserResponse(Guid Id, string Email, UserRole Role);
 
-/// <summary>O perfil de estudo. O progresso por tópico fica de fora até o <c>student_topic</c> ser mapeado.</summary>
+/// <summary>O perfil de estudo. O progresso por tópico não faz parte do perfil: ele sai na trilha (<c>GET /trail</c>).</summary>
 public sealed record ProfileStudentResponse(Guid Id, string Name, ExperimentalGroup ExperimentalGroup);

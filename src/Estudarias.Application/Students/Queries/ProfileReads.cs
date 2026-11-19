@@ -8,7 +8,7 @@ public sealed class ProfileReads(IApplicationDbContext db) : IProfileReads
     public async Task<ProfileResponse?> FindAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // Uma consulta só (a conta e o aluno ligado a ela), e só as colunas do contrato: o User tem o hash da senha, que nunca deve
-        // sair do banco numa leitura, e o Student não é carregado como agregado (o progresso dele ainda nem está mapeado).
+        // sair do banco numa leitura, e o Student não é carregado como agregado (carregá-lo traria o progresso inteiro junto).
         // Materializa aqui, no ponto de leitura, porque o EF Core só traduz a projeção quando a consulta termina.
         return await (
             from user in db.Users
