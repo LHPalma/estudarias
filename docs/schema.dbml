@@ -1,8 +1,8 @@
 // Estudarias — schema alvo da v1
 //
-// Nomes de tabelas e colunas em inglês (snake_case, no singular). As tabelas de identidade (student, app_user e refresh_token) e as
-// de conteúdo (topic, topic_prerequisite, error_type, lesson, exercise, alternative e flashcard) já estão em inglês e batem com as
-// migrations; as de progresso e revisão, ainda em português, passam para o inglês quando forem mapeadas (#84).
+// Nomes de tabelas e colunas em inglês (snake_case, no singular). Todas as tabelas batem com as migrations: identidade (student,
+// app_user e refresh_token), conteúdo (#83: topic, topic_prerequisite, error_type, lesson, exercise, alternative e flashcard) e
+// uso do aluno (#84: student_topic, attempt e student_flashcard).
 
 Enum experimental_group {
   control
@@ -159,53 +159,55 @@ Table student {
   '''
 }
 
-Table aluno_topico {
+Table student_topic {
   id uuid [pk]
-  aluno_id uuid [not null, ref: > student.id]
-  topico_id uuid [not null, ref: > topic.id]
-  desbloqueado_em timestamptz [not null, note: 'fato gravado; uma vez preenchido, nunca volta a bloquear']
-  dominado_em timestamptz [null, note: 'primeira vez que o aluno dominou o tópico; null = disponível']
+  student_id uuid [not null, ref: > student.id, note: 'ON DELETE CASCADE: o progresso é parte do agregado Student']
+  topic_id uuid [not null, ref: > topic.id, note: 'ON DELETE RESTRICT. Índice ix_student_topic_topic_id']
+  unlocked_at timestamptz [not null, note: 'fato gravado; uma vez preenchido, nunca volta a bloquear']
+  mastered_at timestamptz [null, note: 'primeira vez que o aluno dominou o tópico; null = disponível']
 
   indexes {
-    (aluno_id, topico_id) [unique]
+    (student_id, topic_id) [unique, name: 'ux_student_topic_student_id_topic_id']
   }
 
   Note: '''
+    O progresso por tópico, parte do agregado Student: carrega e grava junto com o aluno.
     A linha só existe a partir do desbloqueio: tópico sem linha está bloqueado.
-    Status derivado: dominado_em IS NULL = disponível; preenchido = dominado.
+    Status derivado: mastered_at IS NULL = disponível; preenchido = dominado.
+    Constraint ck_student_topic_mastered_after_unlocked: CHECK (mastered_at IS NULL OR mastered_at >= unlocked_at).
   '''
 }
 
-Table tentativa {
+Table attempt {
   id uuid [pk]
-  aluno_id uuid [not null, ref: > student.id]
-  exercicio_id uuid [not null, ref: > exercise.id]
-  alternativa_id uuid [not null, ref: > alternative.id]
-  tempo_resposta_seg int [null, note: 'opcional; CHECK (tempo_resposta_seg >= 0), também garantido pelo Domain']
-  timestamp timestamptz [not null]
+  student_id uuid [not null, ref: > student.id, note: 'ON DELETE RESTRICT']
+  exercise_id uuid [not null, ref: > exercise.id, note: 'ON DELETE RESTRICT. Índice ix_attempt_exercise_id']
+  alternative_id uuid [not null, ref: > alternative.id, note: 'ON DELETE RESTRICT (fk_attempt_alternative_alternative_id, escrita à mão na migration). Índice ix_attempt_alternative_id']
+  response_seconds int [null, note: 'opcional; ck_attempt_response_seconds: CHECK (response_seconds IS NULL OR response_seconds >= 0), também garantido pelo Domain']
+  answered_at timestamptz [not null, note: 'instante da resposta, pelo relógio injetado']
 
   indexes {
-    (aluno_id, exercicio_id)
+    (student_id, exercise_id) [name: 'ix_attempt_student_id_exercise_id', note: 'a nota (últimas 10 do tópico), o histórico e o estado da lição; sem unicidade']
   }
 }
 
 // ---------- Revisão (SM-2) ----------
 
-Table aluno_flashcard {
-  id uuid [pk]
-  aluno_id uuid [not null, ref: > student.id]
-  flashcard_id uuid [not null, ref: > flashcard.id]
-  tentativa_origem_id uuid [null, ref: > tentativa.id, note: 'primeira tentativa que gerou este cartão para o aluno']
-  algoritmo varchar [not null, note: 'algoritmo que agenda o cartão, ex.: sm2; o cartão fica preso a ele']
-  estado_agendamento jsonb [not null, note: 'opaco para o Domain: só o adapter do algoritmo o lê e escreve. No SM-2: {"repetitions":0,"intervalDays":1,"easeFactor":2.5}']
-  proxima_revisao timestamptz [not null]
+Table student_flashcard {
+  id uuid [pk, note: 'é o studentFlashcardId da API']
+  student_id uuid [not null, ref: > student.id, note: 'ON DELETE RESTRICT']
+  flashcard_id uuid [not null, ref: > flashcard.id, note: 'ON DELETE RESTRICT. Índice ix_student_flashcard_flashcard_id']
+  origin_attempt_id uuid [null, ref: > attempt.id, note: 'primeira tentativa que gerou este cartão para o aluno. ON DELETE RESTRICT. Índice ix_student_flashcard_origin_attempt_id']
+  algorithm "varchar(20)" [not null, note: 'algoritmo que agenda o cartão, ex.: sm2; o cartão fica preso a ele']
+  scheduling_state jsonb [not null, note: 'opaco para o Domain: só o adapter do algoritmo o lê e escreve. No SM-2: {"repetitions":0,"intervalDays":1,"easeFactor":2.5}. O jsonb normaliza o texto (ordem das chaves, espaços): volta o mesmo JSON, não o mesmo texto']
+  next_review_at timestamptz [not null]
 
   indexes {
-    (aluno_id, flashcard_id) [unique]
-    (aluno_id, proxima_revisao)
+    (student_id, flashcard_id) [unique, name: 'ux_student_flashcard_student_id_flashcard_id']
+    (student_id, next_review_at) [name: 'ix_student_flashcard_student_id_next_review_at', note: 'as revisões do dia']
   }
 
-  Note: 'O estado de revisão é neutro ao algoritmo: repetições, intervalo e fator do SM-2 ficam dentro de estado_agendamento.'
+  Note: 'O estado de revisão é neutro ao algoritmo: repetições, intervalo e fator do SM-2 ficam dentro de scheduling_state.'
 }
 
 // ---------- Records: dados de exemplo (Frações) ----------
@@ -274,15 +276,15 @@ Records refresh_token(id, user_id, family_id, token_hash, expires_at, revoked_at
   '0192f0c4-000b-7000-8000-000000000002', '0192f0c4-000a-7000-8000-000000000001', '0192f0c4-000c-7000-8000-000000000001', '0000000000000000000000000000000000000000000000000000000000000002', '2026-11-06 10:20:00-03', null, null
 }
 
-Records aluno_topico(id, aluno_id, topico_id, desbloqueado_em, dominado_em) {
+Records student_topic(id, student_id, topic_id, unlocked_at, mastered_at) {
   '0192f0c4-0007-7000-8000-000000000001', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000003', '2026-10-07 10:00:00-03', '2026-10-07 10:05:00-03'
   '0192f0c4-0007-7000-8000-000000000002', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', '2026-10-07 10:05:00-03', null
 }
 
-Records tentativa(id, aluno_id, exercicio_id, alternativa_id, tempo_resposta_seg, timestamp) {
+Records attempt(id, student_id, exercise_id, alternative_id, response_seconds, answered_at) {
   '0192f0c4-0008-7000-8000-000000000001', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0005-7000-8000-000000000006', 48, '2026-10-07 10:12:00-03'
 }
 
-Records aluno_flashcard(id, aluno_id, flashcard_id, tentativa_origem_id, algoritmo, estado_agendamento, proxima_revisao) {
+Records student_flashcard(id, student_id, flashcard_id, origin_attempt_id, algorithm, scheduling_state, next_review_at) {
   '0192f0c4-000d-7000-8000-000000000001', '0192f0c4-0006-7000-8000-000000000001', '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0008-7000-8000-000000000001', 'sm2', '{"repetitions":0,"intervalDays":1,"easeFactor":2.5}', '2026-10-08 10:12:00-03'
 }
