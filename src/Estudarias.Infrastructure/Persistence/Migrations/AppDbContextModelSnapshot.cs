@@ -18,10 +18,130 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Estudarias.Domain.ErrorTypes.ErrorType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Feedback")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("feedback");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("topic_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopicId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_error_type_topic_id_code");
+
+                    b.ToTable("error_type", (string)null);
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Exercises.Exercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("difficulty");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<string>("Statement")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("statement");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId")
+                        .HasDatabaseName("ix_exercise_lesson_id");
+
+                    b.ToTable("exercise", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exercise_difficulty", "difficulty IN ('easy', 'medium', 'hard')");
+                        });
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Flashcards.Flashcard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("answer");
+
+                    b.Property<Guid?>("ErrorTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("error_type_id");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origin");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("question");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("topic_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ErrorTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_flashcard_error_type_id_generated")
+                        .HasFilter("origin = 'generated_by_error'");
+
+                    b.HasIndex("TopicId")
+                        .HasDatabaseName("ix_flashcard_topic_id");
+
+                    b.ToTable("flashcard", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_flashcard_error_type", "(origin = 'generated_by_error') = (error_type_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_flashcard_origin", "origin IN ('manual', 'generated_by_error')");
+                        });
+                });
 
             modelBuilder.Entity("Estudarias.Domain.Identity.RefreshToken", b =>
                 {
@@ -128,6 +248,43 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Estudarias.Domain.Lessons.Lesson", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("topic_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopicId", "Order")
+                        .IsUnique()
+                        .HasDatabaseName("ux_lesson_topic_id_position");
+
+                    b.ToTable("lesson", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_lesson_position", "position >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Estudarias.Domain.Students.Student", b =>
                 {
                     b.Property<Guid>("Id")
@@ -154,6 +311,115 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Estudarias.Domain.Topics.Topic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_topic_slug");
+
+                    b.ToTable("topic", (string)null);
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.ErrorTypes.ErrorType", b =>
+                {
+                    b.HasOne("Estudarias.Domain.Topics.Topic", null)
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Exercises.Exercise", b =>
+                {
+                    b.HasOne("Estudarias.Domain.Lessons.Lesson", null)
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsMany("Estudarias.Domain.Exercises.Alternative", "Alternatives", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid?>("ErrorTypeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("error_type_id");
+
+                            b1.Property<Guid>("ExerciseId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("exercise_id");
+
+                            b1.Property<bool>("IsCorrect")
+                                .HasColumnType("boolean")
+                                .HasColumnName("is_correct");
+
+                            b1.Property<string>("Text")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("text");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("ErrorTypeId")
+                                .HasDatabaseName("ix_alternative_error_type_id");
+
+                            b1.HasIndex(new[] { "ExerciseId" }, "ix_alternative_exercise_id");
+
+                            b1.HasIndex(new[] { "ExerciseId" }, "ux_alternative_exercise_id_correct")
+                                .IsUnique()
+                                .HasFilter("is_correct");
+
+                            b1.ToTable("alternative", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_alternative_error_type", "(is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL)");
+                                });
+
+                            b1.HasOne("Estudarias.Domain.ErrorTypes.ErrorType", null)
+                                .WithMany()
+                                .HasForeignKey("ErrorTypeId")
+                                .OnDelete(DeleteBehavior.Restrict);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ExerciseId");
+                        });
+
+                    b.Navigation("Alternatives");
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Flashcards.Flashcard", b =>
+                {
+                    b.HasOne("Estudarias.Domain.ErrorTypes.ErrorType", null)
+                        .WithMany()
+                        .HasForeignKey("ErrorTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Estudarias.Domain.Topics.Topic", null)
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Estudarias.Domain.Identity.RefreshToken", b =>
                 {
                     b.HasOne("Estudarias.Domain.Identity.User", null)
@@ -169,6 +435,50 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Lessons.Lesson", b =>
+                {
+                    b.HasOne("Estudarias.Domain.Topics.Topic", null)
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Estudarias.Domain.Topics.Topic", b =>
+                {
+                    b.OwnsMany("Estudarias.Domain.Topics.TopicPrerequisite", "_prerequisites", b1 =>
+                        {
+                            b1.Property<Guid>("TopicId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("topic_id");
+
+                            b1.Property<Guid>("PrerequisiteId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("prerequisite_id");
+
+                            b1.HasKey("TopicId", "PrerequisiteId");
+
+                            b1.HasIndex("PrerequisiteId")
+                                .HasDatabaseName("ix_topic_prerequisite_prerequisite_id");
+
+                            b1.ToTable("topic_prerequisite", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_topic_prerequisite_not_self", "topic_id <> prerequisite_id");
+                                });
+
+                            b1.HasOne("Estudarias.Domain.Topics.Topic", null)
+                                .WithMany()
+                                .HasForeignKey("PrerequisiteId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired();
+
+                            b1.WithOwner()
+                                .HasForeignKey("TopicId");
+                        });
+
+                    b.Navigation("_prerequisites");
                 });
 #pragma warning restore 612, 618
         }

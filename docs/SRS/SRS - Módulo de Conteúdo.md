@@ -1,6 +1,6 @@
 # SRS — Módulo de Conteúdo (Tópicos, Lições, Exercícios, Tipos de Erro e Flashcards)
 
-**Status:** Rascunho. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83), a carga do seed YAML e o primeiro tópico (#85) ainda não têm implementação. Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83) está implementada: mapeamento, restrições, migration `AddContent` e testes de integração (Seção 8.3). A carga do seed YAML e o primeiro tópico (#85) ainda não têm implementação. Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -54,7 +54,7 @@ Não cobre (ver Seção 7):
 - **Seção 5**: fluxos alternativos e de exceção (FA-CNT-01 a FA-CNT-08).
 - **Seção 6**: requisitos não funcionais (RNF-CNT-01 a RNF-CNT-05).
 - **Seção 7**: restrições, premissas e o que fica de fora.
-- **Seção 8**: modelo de dados e catálogo de erros.
+- **Seção 8**: modelo de dados, decisões da persistência e catálogo de erros.
 - **Seção 9**: rastreabilidade.
 
 ---
@@ -132,7 +132,7 @@ Um flashcard tem pergunta e resposta e pertence a um tópico. O flashcard **gera
 
 ### RF-CNT-05: Persistência do conteúdo (#83)
 
-Os agregados são mapeados no EF Core, com as tabelas `topic`, `topic_prerequisite`, `error_type`, `lesson`, `exercise`, `alternative` e `flashcard` (Seção 8.2), as restrições no banco (RN-CNT-10) e uma migration (`AddContent`). A Application lê o conteúdo por visões `AsNoTracking` no `IApplicationDbContext` (ADR-002); **não há repositório de escrita** do conteúdo, porque só a carga o grava.
+Os agregados são mapeados no EF Core, com as tabelas `topic`, `topic_prerequisite`, `error_type`, `lesson`, `exercise`, `alternative` e `flashcard` (Seção 8.2), as restrições no banco (RN-CNT-10) e uma migration (`AddContent`). As decisões do mapeamento estão na Seção 8.3. A Application lê o conteúdo por visões `AsNoTracking` no `IApplicationDbContext` (ADR-002); **não há repositório de escrita** do conteúdo, porque só a carga o grava.
 
 ### RF-CNT-06: Carga do conteúdo (#85)
 
@@ -207,9 +207,9 @@ Toda alternativa errada e todo flashcard gerado por erro apontam para um tipo de
 
 Além do Domain, o banco recusa o que o conteúdo não pode ter:
 
-- índices únicos: `topic.slug`, `(topic_id, code)` em `error_type`, `(topic_id, order)` em `lesson`, **uma alternativa correta por exercício** (índice parcial) e **um flashcard gerado por tipo de erro** (índice parcial);
+- índices únicos: `topic.slug`, `(topic_id, code)` em `error_type`, `(topic_id, position)` em `lesson` (a ordem da lição; Seção 8.3), **uma alternativa correta por exercício** (índice parcial) e **um flashcard gerado por tipo de erro** (índice parcial);
 - `CHECK`s: pré-requisito diferente do próprio tópico, alternativa correta sem tipo de erro (e errada com), origem do flashcard coerente com o tipo de erro;
-- chaves estrangeiras com **`ON DELETE RESTRICT`**: o conteúdo não some em cascata, porque tentativas e cartões dependem dele;
+- chaves estrangeiras com **`ON DELETE RESTRICT`**: o conteúdo não some em cascata, porque tentativas e cartões dependem dele (as linhas do próprio agregado, pré-requisitos e alternativas, saem com o dono; Seção 8.3);
 - enums gravados em minúsculas, com a conversão explícita, como no `student`.
 
 ### RN-CNT-11: Chave natural e identidade estável
@@ -354,7 +354,7 @@ erDiagram
     lesson {
         uuid id PK
         uuid topic_id FK
-        int order
+        int position
         varchar title
         text content
     }
@@ -385,21 +385,31 @@ erDiagram
 
 ### 8.2 Tabelas e restrições
 
-As tabelas seguem o `docs/schema.dbml`, que passa do português para o inglês na #83. Os nomes de coluna acima são os alvos; o que não é óbvio:
+As tabelas seguem o `docs/schema.dbml`, já em inglês para o conteúdo desde a #83. Os nomes de coluna do diagrama são os do banco, com uma exceção: a ordem da lição é a coluna **`position`** (veja a Seção 8.3). O que não é óbvio, com o nome de cada restrição como está na migration `AddContent`:
 
 | Tabela | Restrições |
 |---|---|
-| `topic` | `slug` único (RN-CNT-01) |
-| `topic_prerequisite` | PK `(topic_id, prerequisite_id)`; `CHECK (topic_id <> prerequisite_id)`; ciclos barrados pelo validador (RN-CNT-08) |
-| `error_type` | único `(topic_id, code)` (RN-CNT-03) |
-| `lesson` | único `(topic_id, order)` (RN-CNT-04) |
-| `exercise` | `code` único (campo novo da #85; escopo de unicidade definido lá) |
-| `alternative` | `CHECK ((is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL))`; índice único parcial em `(exercise_id) WHERE is_correct` (no máximo uma correta); "tipo de erro do mesmo tópico" no validador (RN-CNT-09) |
-| `flashcard` | `CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL))`; índice único parcial em `(error_type_id) WHERE origin = 'generated_by_error'` (RN-CNT-07, RN-CNT-10); `code` único (campo novo da #85; escopo de unicidade definido lá) |
+| `topic` | `slug` único: `ux_topic_slug` (RN-CNT-01) |
+| `topic_prerequisite` | PK `PK_topic_prerequisite` em `(topic_id, prerequisite_id)`; `ck_topic_prerequisite_not_self`: `CHECK (topic_id <> prerequisite_id)`; índice `ix_topic_prerequisite_prerequisite_id`; ciclos barrados pelo validador (RN-CNT-08) |
+| `error_type` | único `(topic_id, code)`: `ux_error_type_topic_id_code` (RN-CNT-03) |
+| `lesson` | único `(topic_id, position)`: `ux_lesson_topic_id_position`; `ck_lesson_position`: `CHECK (position >= 1)` (RN-CNT-04) |
+| `exercise` | `ck_exercise_difficulty`: `CHECK (difficulty IN ('easy', 'medium', 'hard'))`; índice `ix_exercise_lesson_id`; `code` único (campo novo da #85; escopo de unicidade definido lá) |
+| `alternative` | `ck_alternative_error_type`: `CHECK ((is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL))`; índice único parcial `ux_alternative_exercise_id_correct` em `(exercise_id) WHERE is_correct` (no máximo uma correta); índices `ix_alternative_exercise_id` e `ix_alternative_error_type_id`; "tipo de erro do mesmo tópico" no validador (RN-CNT-09) |
+| `flashcard` | `ck_flashcard_origin`: `CHECK (origin IN ('manual', 'generated_by_error'))`; `ck_flashcard_error_type`: `CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL))`; índice único parcial `ux_flashcard_error_type_id_generated` em `(error_type_id) WHERE origin = 'generated_by_error'` (RN-CNT-07, RN-CNT-10); índice `ix_flashcard_topic_id`; `code` único (campo novo da #85; escopo de unicidade definido lá) |
 
-Todas as chaves estrangeiras são `ON DELETE RESTRICT`. Os enums (`difficulty`, `origin`) são gravados em minúsculas.
+Todas as chaves estrangeiras entre itens do conteúdo são `ON DELETE RESTRICT`. As duas exceções são as ligações de uma linha com o próprio agregado, `topic_prerequisite.topic_id` e `alternative.exercise_id`, que são `ON DELETE CASCADE` (Seção 8.3). Os enums (`difficulty`, `origin`) são gravados como texto em minúsculas, com a conversão explícita no mapeamento.
 
-### 8.3 Catálogo de erros
+### 8.3 Decisões da persistência (#83)
+
+- **A ordem da lição fica na coluna `position`.** `order` é palavra reservada do SQL e exigiria aspas em todo SQL escrito à mão, inclusive nas `CHECK`s. É o mesmo motivo de a tabela de conta se chamar `app_user`. No Domain, a propriedade continua `Lesson.Order`; o nome muda só no banco.
+- **O pré-requisito é um tipo próprio no Domain (`TopicPrerequisite`).** O EF Core não grava uma `List<Guid>` numa tabela de junção, só numa coluna (JSON ou array), o que perderia a PK, a `CHECK` e a chave estrangeira de `topic_prerequisite`. O `Topic` guarda os pré-requisitos como `TopicPrerequisite` num campo privado, mapeado como coleção do agregado (*owned*), e `Topic.Prerequisites` continua devolvendo só os ids: o `TopicMastery` e os testes do Domain não mudaram.
+- **Numa consulta, os pré-requisitos são lidos pelo campo mapeado.** Como não há propriedade pública mapeada, a leitura usa `EF.Property<IEnumerable<TopicPrerequisite>>(topic, "_prerequisites")`, como documenta o `IApplicationDbContext`.
+- **As alternativas são parte do agregado `Exercise`.** Mapeadas como coleção *owned* na tabela `alternative`, carregam e gravam junto com o exercício, sem `Include`. O `Exercise` ganhou um construtor privado só com as propriedades simples, para o EF Core montá-lo ao ler; o `Create` continua sendo a única entrada com validação.
+- **As linhas do próprio agregado saem em cascata com o dono.** `topic_prerequisite.topic_id` e `alternative.exercise_id` são `ON DELETE CASCADE`, o comportamento padrão de uma coleção *owned* no EF Core. A primeira versão da #83 as deixava `RESTRICT`, mas o snapshot das migrations não consegue registrar outro comportamento nessa ligação: o modelo ficava sempre "com mudanças pendentes", e o EF Core se recusava a migrar o banco. A proteção do RN-CNT-10 continua onde importa: um tópico exigido por outro é barrado pela FK de `prerequisite_id`, e as alternativas ficam protegidas pelas FKs que apontam para elas (a tentativa, na #84), que são `RESTRICT`. O teste `MigrationsTests` (em `Infrastructure.UnitTests`, sem banco) compara o modelo com o snapshot e quebra se um mapeamento ficar sem migration.
+- **O conteúdo não tem repositório de escrita** (RN-CNT-14). A Application lê pelas visões `AsNoTracking` do `IApplicationDbContext` (`Topics`, `ErrorTypes`, `Lessons`, `Exercises`, `Flashcards`); quem grava é a carga da #85, pelo `AppDbContext`.
+- **Testes** (`ContentConfigurationTests`, PostgreSQL real via Testcontainers, RNF-CNT-04): ida e volta de cada agregado (com alternativas e pré-requisitos), a leitura dos pré-requisitos numa consulta, a leitura sem rastreamento, cada restrição da tabela acima provocada por SQL direto (conferindo o código do erro e o nome da restrição), os casos que devem ser aceitos (o mesmo `code` de tipo de erro em outro tópico, várias alternativas erradas), o `ON DELETE RESTRICT` de cada item referenciado e a cascata das alternativas com o exercício.
+
+### 8.4 Catálogo de erros
 
 São erros de domínio da construção dos agregados. **Nenhum vira resposta HTTP**: o conteúdo só entra pela carga, e o validador os traduz em mensagens com arquivo e item (RNF-CNT-03).
 
@@ -422,8 +432,8 @@ São erros de domínio da construção dos agregados. **Nenhum vira resposta HTT
 | RF-CNT-01, RN-CNT-04 | Domain: #27 (PR #65) | `LessonTests` |
 | RF-CNT-03, RN-CNT-05, RN-CNT-06 | Domain: #29 (PR #77) | `ExerciseTests`; `AlternativeTests` |
 | RF-CNT-04, RN-CNT-07 | Domain: #31 (PR #67) | `FlashcardTests` |
-| Catálogo de erros (Seção 8.3) | Domain: #12 (PR #13) | `DomainErrorCatalogTests` |
-| RF-CNT-05, RN-CNT-10, RN-CNT-14 | #83 (a fazer) | Testes de integração: ida e volta de cada agregado; cada restrição recusada pelo banco |
+| Catálogo de erros (Seção 8.4) | Domain: #12 (PR #13) | `DomainErrorCatalogTests` |
+| RF-CNT-05, RN-CNT-10, RN-CNT-14 | #83: configurações em `Infrastructure/Persistence/Configurations`, `TopicPrerequisite` no Domain, visões no `IApplicationDbContext` e migration `AddContent` (decisões na Seção 8.3) | `ContentConfigurationTests`: ida e volta de cada agregado; cada restrição recusada pelo banco; `ON DELETE RESTRICT`. `MigrationsTests`: o modelo bate com a migration |
 | RF-CNT-06, RN-CNT-11, RN-CNT-12, RN-CNT-13, FA-CNT-06, FA-CNT-07 | #85 (a fazer) | Integração da carga: carga inicial, recarga idempotente, arquivo inválido sem gravar nada |
 | RF-CNT-07, RN-CNT-08, RN-CNT-09, FA-CNT-01 a FA-CNT-05 | #85 (a fazer) | Testes do validador, uma regra por teste |
 | RF-CNT-08 | #85 (a fazer) | Carga dos dois arquivos de conteúdo contra o PostgreSQL real |

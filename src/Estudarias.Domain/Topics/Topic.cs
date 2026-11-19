@@ -9,11 +9,13 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
     public const int NameMaxLength = 100;
     public const int SlugMaxLength = 100;
 
-    private readonly List<Guid> _prerequisites = [];
+    private readonly List<TopicPrerequisite> _prerequisites = [];
 
     public string Name { get; }
     public string Slug { get; }
-    public IReadOnlyCollection<Guid> Prerequisites => _prerequisites;
+
+    /// <summary>Os ids dos tópicos exigidos, na ordem em que foram adicionados.</summary>
+    public IReadOnlyCollection<Guid> Prerequisites => [.. _prerequisites.Select(prerequisite => prerequisite.PrerequisiteId)];
 
     private Topic(string name, string slug)
     {
@@ -61,12 +63,12 @@ public sealed partial class Topic : BaseEntity, IAggregateRoot
                 TopicErrors.PrerequisiteSelf, "A topic cannot be a prerequisite of itself.");
         }
 
-        if (_prerequisites.Contains(requisiteId))
+        if (_prerequisites.Any(prerequisite => prerequisite.PrerequisiteId == requisiteId))
         {
             throw new DomainValidationException(
                 TopicErrors.PrerequisiteDuplicated, "The prerequisite was already added to this topic.");
         }
 
-        _prerequisites.Add(requisiteId);
+        _prerequisites.Add(new TopicPrerequisite(requisiteId));
     }
 }

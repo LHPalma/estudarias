@@ -14,6 +14,13 @@ public sealed class Exercise : BaseEntity, IAggregateRoot
     public Difficulty Difficulty { get; }
     public IReadOnlyCollection<Alternative> Alternatives => _alternatives;
 
+    // Para o EF Core materializar: ele só preenche pelo construtor as propriedades simples, e as alternativas chegam depois, na
+    // coleção. O Create continua sendo a única porta de entrada com validação.
+    private Exercise(Guid lessonId, string statement, Difficulty difficulty)
+        : this(lessonId, statement, difficulty, [])
+    {
+    }
+
     private Exercise(Guid lessonId, string statement, Difficulty difficulty, List<Alternative> alternatives)
     {
         LessonId = lessonId;
