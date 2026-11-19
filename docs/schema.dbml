@@ -74,9 +74,14 @@ Table lesson {
 
 Table exercise {
   id uuid [pk]
-  lesson_id uuid [not null, ref: > lesson.id, note: 'Índice ix_exercise_lesson_id']
+  lesson_id uuid [not null, ref: > lesson.id]
+  code "varchar(100)" [not null, note: 'chave natural na carga do conteúdo, única no tópico (#85); formato dos códigos de tipo de erro']
   statement text [not null]
   difficulty difficulty [not null, note: "ck_exercise_difficulty: CHECK (difficulty IN ('easy', 'medium', 'hard'))"]
+
+  indexes {
+    (lesson_id, code) [unique, name: 'ux_exercise_lesson_id_code', note: 'o banco garante o código único na lição; a carga o exige único no tópico']
+  }
 }
 
 Table alternative {
@@ -98,13 +103,15 @@ Table alternative {
 
 Table flashcard {
   id uuid [pk]
-  topic_id uuid [not null, ref: > topic.id, note: 'Índice ix_flashcard_topic_id']
+  topic_id uuid [not null, ref: > topic.id]
+  code "varchar(100)" [not null, note: 'chave natural na carga do conteúdo, única no tópico (#85)']
   question text [not null]
   answer text [not null]
   origin flashcard_origin [not null, note: "ck_flashcard_origin: CHECK (origin IN ('manual', 'generated_by_error'))"]
   error_type_id uuid [null, ref: > error_type.id, note: 'preenchido quando origin = generated_by_error']
 
   Note: '''
+    Índice único ux_flashcard_topic_id_code em (topic_id, code).
     Global por error_type: um único flashcard generated_by_error por error_type.
     Índice único parcial ux_flashcard_error_type_id_generated em (error_type_id) WHERE origin = 'generated_by_error'.
     Constraint ck_flashcard_error_type: CHECK ((origin = 'generated_by_error') = (error_type_id IS NOT NULL)). O Domain garante o
@@ -239,9 +246,9 @@ Records lesson(id, topic_id, position, title, content) {
   '0192f0c4-0003-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 2, 'Soma de frações com denominadores diferentes', 'Para somar 1/2 + 1/3, encontre um denominador comum.'
 }
 
-Records exercise(id, lesson_id, statement, difficulty) {
-  '0192f0c4-0004-7000-8000-000000000001', '0192f0c4-0003-7000-8000-000000000001', 'Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?', 'easy'
-  '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0003-7000-8000-000000000002', 'Quanto é 1/2 + 1/3?', 'medium'
+Records exercise(id, lesson_id, code, statement, difficulty) {
+  '0192f0c4-0004-7000-8000-000000000001', '0192f0c4-0003-7000-8000-000000000001', 'pizza_comida', 'Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?', 'easy'
+  '0192f0c4-0004-7000-8000-000000000002', '0192f0c4-0003-7000-8000-000000000002', 'meio_mais_terco', 'Quanto é 1/2 + 1/3?', 'medium'
 }
 
 // error_type_id vazio = NULL (alternativa correta)
@@ -256,9 +263,9 @@ Records alternative(id, exercise_id, text, is_correct, error_type_id) {
   '0192f0c4-0005-7000-8000-000000000008', '0192f0c4-0004-7000-8000-000000000002', '1/6', false, '0192f0c4-0002-7000-8000-000000000006'
 }
 
-Records flashcard(id, topic_id, question, answer, origin, error_type_id) {
-  '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', 'Por que 1/2 + 1/3 não é 2/5?', 'Porque é preciso um denominador comum antes de somar os numeradores.', 'generated_by_error', '0192f0c4-0002-7000-8000-000000000003'
-  '0192f0c4-0009-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
+Records flashcard(id, topic_id, code, question, answer, origin, error_type_id) {
+  '0192f0c4-0009-7000-8000-000000000001', '0192f0c4-0001-7000-8000-000000000002', 'por_que_nao_soma_direto', 'Por que 1/2 + 1/3 não é 2/5?', 'Porque é preciso um denominador comum antes de somar os numeradores.', 'generated_by_error', '0192f0c4-0002-7000-8000-000000000003'
+  '0192f0c4-0009-7000-8000-000000000002', '0192f0c4-0001-7000-8000-000000000002', 'o_que_e_o_denominador', 'O que o denominador de uma fração indica?', 'Em quantas partes iguais o todo foi dividido.', 'manual', null
 }
 
 // ---------- Records: estado de um aluno ----------
