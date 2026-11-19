@@ -445,8 +445,10 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
         var content = await SeedContentAsync();
 
         // Act & Assert
+        // Sem tipo de erro, a linha respeita ck_flashcard_error_type, e só a origem fica errada: o PostgreSQL reporta só a primeira
+        // CHECK que falha, então o insert precisa violar apenas a que o teste quer provar.
         await AssertRejectedAsync(
-            $"INSERT INTO flashcard (id, topic_id, question, answer, origin, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Fractions.Id}', 'Outra', 'Outra', 'gerado_por_erro', '{content.ErrorType.Id}')",
+            $"INSERT INTO flashcard (id, topic_id, question, answer, origin, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Fractions.Id}', 'Outra', 'Outra', 'gerado_por_erro', NULL)",
             PostgresErrorCodes.CheckViolation,
             "ck_flashcard_origin");
     }
