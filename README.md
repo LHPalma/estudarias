@@ -244,8 +244,8 @@ mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha-
   "totalTopics": 2,
   "dueReviews": 0,
   "topics": [
-    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "links": [] },
-    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "links": [] }
+    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] },
+    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] }
   ],
   "links": [{ "href": "http://localhost:5007/trail", "rel": "self", "method": "GET" }]
 }
@@ -254,7 +254,36 @@ mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha-
 - `status` é `locked`, `available` ou `mastered`. `score` vai de 0 a 100, com uma casa e **arredondada para baixo** (69,95 sai `69.9`, nunca `70.0`), e é `null` enquanto o aluno não respondeu nada no tópico. A nota usa as 10 respostas mais recentes do aluno no tópico.
 - Os tópicos sem pré-requisito já vêm `available` para o aluno novo: o cadastro os libera, e abrir a trilha os libera de novo para quem se cadastrou antes de existir conteúdo (é a única escrita do endpoint, e é idempotente).
 - `dueReviews` conta os cartões do aluno cuja próxima revisão já chegou.
-- Os links `topic` (de cada item) e `reviews` entram com o `GET /topics/{id}` e o `GET /reviews/due`: um link só existe quando a rota dele existe.
+- Cada item traz o link `topic`. O `reviews` entra com o `GET /reviews/due`: um link só existe quando a rota dele existe.
 - É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed content/`); sem ele a trilha vem vazia.
 
 Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), e conta que não existe ou foi desabilitada (`identity.session.invalid`).
+
+## API do tópico e da lição
+
+`GET /topics/{id}` devolve o tópico do aluno logado, e `GET /lessons/{id}`, a lição. O contrato completo está em [`docs/api.md`](docs/api.md#tópico--get-topicstopicid). As duas são leituras (ADR-002) e não gravam nada.
+
+```json
+{
+  "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "available",
+  "score": 42.0, "attemptCount": 3, "masteryThreshold": 70, "minAttempts": 5,
+  "prerequisites": [{ "id": "0192f0c4-...", "name": "Operações básicas", "status": "mastered" }],
+  "unlocks": [{ "id": "0192f0c4-...", "name": "Equações do 1º grau" }],
+  "lessons": [{ "id": "0192f0c4-...", "order": 1, "title": "Soma de frações", "links": [{ "href": "http://localhost:5007/lessons/0192f0c4-...", "rel": "lesson", "method": "GET" }] }],
+  "links": [
+    { "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
+}
+```
+
+- **Tópico bloqueado abre** (`200`): a tela mostra o que falta, e as lições vêm **sem o link `lesson`**. `attemptCount` é o total de tentativas no tópico; `score` usa as 10 mais recentes.
+- **A lição nunca revela o gabarito:** cada alternativa só tem `id` e `text`, e a consulta nem lê `is_correct` nem `error_type_id`. Exercícios e alternativas vêm na ordem do conteúdo (gravada em `position`).
+- O link `answer` de cada exercício entra com o `POST /exercises/{id}/attempts`.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `403` | a lição de um tópico bloqueado | `student.topic.locked` |
+| `404` | tópico ou lição que não existe | `trail.topic.notFound`, `trail.lesson.notFound` |
+

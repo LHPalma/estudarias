@@ -95,7 +95,7 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
 - `status`: `locked`, `available` ou `mastered`. Um tópico liberado nunca volta a `locked`.
 - `score`: `null` enquanto o aluno não respondeu nada no tópico.
 - `dueReviews`: cartões com revisão vencida, para o aviso "N revisões para hoje".
-- **Links entregues na #86:** o `self` da trilha. O `topic` de cada item entra com o `GET /topics/{id}` (#87) e o `reviews` com o `GET /reviews/due` (#89): um link só existe quando a rota dele existe (ADR-004), então até lá o `links` de cada item vem vazio.
+- **Links entregues:** o `self` da trilha (#86) e o `topic` de cada item (#87). O `reviews` entra com o `GET /reviews/due` (#89): um link só existe quando a rota dele existe (ADR-004).
 - A nota usa as 10 respostas mais recentes do aluno no tópico. A trilha de um aluno que ainda não tem a raiz liberada a libera antes de responder (idempotente).
 
 ## Tópico — `GET /topics/{topicId}`
@@ -130,6 +130,8 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
 ```
 
 - Dominar o tópico exige `score >= masteryThreshold` **e** `attemptCount >= minAttempts`.
+- `attemptCount` é o total de tentativas do aluno no tópico (todas, e não só as da janela da nota); `score` usa as 10 mais recentes.
+- `lessons` vêm por `order`, sem o conteúdo (que só sai em `GET /lessons/{id}`). O campo `status` de cada lição, com `completedExercises` e `totalExercises`, entra com a #91.
 - `unlocks`: os tópicos que têm este como pré-requisito.
 - Erros: `404 trail.topic.notFound`.
 
@@ -167,7 +169,9 @@ O conteúdo da lição e os exercícios dela, **sem o gabarito**: nenhuma altern
 
 - `content`: texto da lição, com quebras de linha. O formato é texto simples por ora; se a equipe adotar Markdown, este campo continua o mesmo.
 - `difficulty`: `easy`, `medium` ou `hard`.
-- As alternativas vêm na ordem do conteúdo.
+- Exercícios e alternativas vêm na ordem do conteúdo, que é gravada (`position`, #104); o `id` não serve de ordem.
+- Nenhum campo, em nenhum nível, diz qual alternativa é a correta, nem o tipo de erro de cada errada: a consulta nem lê essas colunas.
+- O link `answer` de cada exercício entra com o `POST /exercises/{id}/attempts` (#88), então até lá o `links` do exercício vem vazio.
 - Erros: `404 trail.lesson.notFound`; `403 student.topic.locked` se o tópico da lição está bloqueado.
 
 ## Responder exercício — `POST /exercises/{exerciseId}/attempts`
