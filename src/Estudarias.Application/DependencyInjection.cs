@@ -23,6 +23,8 @@ public static class DependencyInjection
         // As leituras não passam por caso de uso: a API chama a porta de leitura direto.
         services.AddScoped<IProfileReads, ProfileReads>();
         services.AddScoped<ITrailReads, TrailReads>();
+        services.AddScoped<ITopicReads, TopicReads>();
+        services.AddScoped<ILessonReads, LessonReads>();
 
         return services;
     }

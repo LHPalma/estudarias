@@ -41,19 +41,34 @@ internal static class StudentReads
         statuses.TryGetValue(topicId, out var status) ? status : TopicStatus.Locked;
 
     /// <summary>
-    /// As respostas do aluno nos exercícios, da mais recente para a mais antiga, com o desempate pelo id (v7, que cresce com o tempo)
-    /// para duas respostas no mesmo instante saírem sempre na mesma ordem. Só as colunas que a nota usa.
+    /// As respostas do aluno (de um tópico só, quando <paramref name="topicId"/> vem), da mais recente para a mais antiga, com o
+    /// desempate pelo id (v7, que cresce com o tempo) para duas respostas no mesmo instante saírem sempre na mesma ordem. Só as colunas
+    /// que a nota usa; o tópico de um exercício é o da lição dele.
     /// </summary>
-    private static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId) =>
-        from attempt in db.Attempts
-        join exercise in db.Exercises on attempt.ExerciseId equals exercise.Id
-        join lesson in db.Lessons on exercise.LessonId equals lesson.Id
-        where attempt.StudentId == studentId
-        orderby attempt.AnsweredAt descending, attempt.Id descending
-        select new AnswerRow(
-            lesson.TopicId,
-            exercise.Difficulty,
-            exercise.Alternatives.Any(alternative => alternative.Id == attempt.AlternativeId && alternative.IsCorrect));
+    private static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId, Guid? topicId = null)
+    {
+        var sources =
+            from attempt in db.Attempts
+            join exercise in db.Exercises on attempt.ExerciseId equals exercise.Id
+            join lesson in db.Lessons on exercise.LessonId equals lesson.Id
+            where attempt.StudentId == studentId
+            select new { attempt, exercise, lesson };
+
+        // O filtro entra antes da projeção: o EF Core não traduz um Where sobre o resultado já projetado num tipo nosso.
+        if (topicId is { } id)
+        {
+            sources = sources.Where(source => source.lesson.TopicId == id);
+        }
+
+        return sources
+            .OrderByDescending(source => source.attempt.AnsweredAt)
+            .ThenByDescending(source => source.attempt.Id)
+            .Select(source => new AnswerRow(
+                source.lesson.TopicId,
+                source.exercise.Difficulty,
+                source.exercise.Alternatives.Any(
+                    alternative => alternative.Id == source.attempt.AlternativeId && alternative.IsCorrect)));
+    }
 
     /// <summary>Para cada tópico com respostas, as da janela da nota (as mais recentes), da mais recente para a mais antiga.</summary>
     public static async Task<Dictionary<Guid, IReadOnlyList<GradedAnswer>>> LatestAnswersByTopicAsync(
@@ -73,7 +88,7 @@ internal static class StudentReads
     public static async Task<(IReadOnlyList<GradedAnswer> Latest, int Total)> AnswersOfTopicAsync(
         IApplicationDbContext db, Guid studentId, Guid topicId, CancellationToken cancellationToken)
     {
-        var inTopic = Answers(db, studentId).Where(answer => answer.TopicId == topicId);
+        var inTopic = Answers(db, studentId, topicId);
 
         var total = await inTopic.CountAsync(cancellationToken);
         var latest = await inTopic.Take(TopicScore.Window).ToListAsync(cancellationToken);
