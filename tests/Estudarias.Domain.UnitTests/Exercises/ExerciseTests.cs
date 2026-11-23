@@ -19,7 +19,7 @@ public class ExerciseTests
     ];
 
     private static Exercise CreateWith(IReadOnlyCollection<Alternative> alternatives) =>
-        Exercise.Create(LessonId, Code, Statement, Difficulty.Easy, alternatives);
+        Exercise.Create(LessonId, 1, Code, Statement, Difficulty.Easy, alternatives);
 
     [Fact(DisplayName = "Um exercício nasce com a lição, o enunciado, a dificuldade e as alternativas informados")]
     public void Create_WithValidData_KeepsValues()
@@ -28,7 +28,7 @@ public class ExerciseTests
         var alternatives = ValidAlternatives();
 
         // Act
-        var exercise = Exercise.Create(LessonId, Code, Statement, Difficulty.Medium, alternatives);
+        var exercise = Exercise.Create(LessonId, 1, Code, Statement, Difficulty.Medium, alternatives);
 
         // Assert
         Assert.Equal(LessonId, exercise.LessonId);
@@ -44,7 +44,7 @@ public class ExerciseTests
         var statement = "\n  Quanto é 1/2 + 1/3?\n";
 
         // Act
-        var exercise = Exercise.Create(LessonId, Code, statement, Difficulty.Easy, ValidAlternatives());
+        var exercise = Exercise.Create(LessonId, 1, Code, statement, Difficulty.Easy, ValidAlternatives());
 
         // Assert
         Assert.Equal(statement, exercise.Statement);
@@ -79,7 +79,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(Guid.Empty, Code, Statement, Difficulty.Easy, ValidAlternatives()));
+            () => Exercise.Create(Guid.Empty, 1, Code, Statement, Difficulty.Easy, ValidAlternatives()));
         Assert.Equal("exercise.lesson.required", exception.Code);
     }
 
@@ -92,7 +92,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(LessonId, Code, statement!, Difficulty.Easy, ValidAlternatives()));
+            () => Exercise.Create(LessonId, 1, Code, statement!, Difficulty.Easy, ValidAlternatives()));
         Assert.Equal("exercise.statement.required", exception.Code);
     }
 
@@ -104,7 +104,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(LessonId, Code, Statement, (Difficulty)difficulty, ValidAlternatives()));
+            () => Exercise.Create(LessonId, 1, Code, Statement, (Difficulty)difficulty, ValidAlternatives()));
         Assert.Equal("exercise.difficulty.invalid", exception.Code);
     }
 
@@ -188,7 +188,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(LessonId, code!, Statement, Difficulty.Easy, ValidAlternatives()));
+            () => Exercise.Create(LessonId, 1, code!, Statement, Difficulty.Easy, ValidAlternatives()));
         Assert.Equal(expected, exception.Code);
     }
 
@@ -200,7 +200,7 @@ public class ExerciseTests
         var otherLesson = Guid.CreateVersion7();
 
         // Act
-        exercise.Revise(otherLesson, "Quanto é 1/3 + 1/2?", Difficulty.Hard, ValidAlternatives());
+        exercise.Revise(otherLesson, 1, "Quanto é 1/3 + 1/2?", Difficulty.Hard, ValidAlternatives());
 
         // Assert
         Assert.Equal(
@@ -219,7 +219,7 @@ public class ExerciseTests
 
         // Act
         exercise.Revise(
-            LessonId, Statement, Difficulty.Easy, [Alternative.Wrong("5/6", otherErrorType), Alternative.Correct("dois QUINTOS")]);
+            LessonId, 1, Statement, Difficulty.Easy, [Alternative.Wrong("5/6", otherErrorType), Alternative.Correct("dois QUINTOS")]);
 
         // Assert
         var formerCorrect = exercise.Alternatives.Single(alternative => alternative.Id == correctId);
@@ -238,7 +238,7 @@ public class ExerciseTests
 
         // Act
         exercise.Revise(
-            LessonId,
+            LessonId, 1,
             Statement,
             Difficulty.Easy,
             [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId), Alternative.Wrong("1/6", ErrorTypeId)]);
@@ -257,7 +257,7 @@ public class ExerciseTests
 
         // Act
         var exception = Assert.Throws<DomainValidationException>(() => exercise.Revise(
-            Guid.CreateVersion7(), "Outro", Difficulty.Hard, [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId)]));
+            Guid.CreateVersion7(), 1, "Outro", Difficulty.Hard, [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId)]));
 
         // Assert
         Assert.Equal("exercise.alternative.removed", exception.Code);
@@ -274,7 +274,7 @@ public class ExerciseTests
 
         // Act
         var exception = Assert.Throws<DomainValidationException>(() => exercise.Revise(
-            LessonId,
+            LessonId, 1,
             Statement,
             Difficulty.Easy,
             [Alternative.Correct("5/6"), Alternative.Correct("2/5"), Alternative.Wrong("2/6", ErrorTypeId)]));
@@ -282,5 +282,123 @@ public class ExerciseTests
         // Assert
         Assert.Equal("exercise.alternative.multipleCorrect", exception.Code);
         Assert.Equal("5/6", Assert.Single(exercise.Alternatives, alternative => alternative.IsCorrect).Text);
+    }
+
+    // ---------- A ordem do conteúdo (#104) ----------
+
+    [Fact(DisplayName = "Um exercício guarda o lugar dele na lição")]
+    public void Create_KeepsThePositionInTheLesson()
+    {
+        // Act
+        var exercise = Exercise.Create(LessonId, 3, Code, Statement, Difficulty.Easy, ValidAlternatives());
+
+        // Assert
+        Assert.Equal(3, exercise.Position);
+    }
+
+    [Theory(DisplayName = "A posição do exercício começa em 1")]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Create_WithAPositionBelowOne_Throws(int position)
+    {
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(
+            () => Exercise.Create(LessonId, position, Code, Statement, Difficulty.Easy, ValidAlternatives()));
+
+        // Assert
+        Assert.Equal("exercise.position.invalid", exception.Code);
+    }
+
+    [Fact(DisplayName = "As alternativas são numeradas a partir de 1, na ordem em que chegam")]
+    public void Create_NumbersTheAlternativesInTheGivenOrder()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Wrong("2/5", ErrorTypeId), Alternative.Correct("5/6"), Alternative.Wrong("2/6", ErrorTypeId)]);
+
+        // Act
+        var alternatives = exercise.Alternatives.ToList();
+
+        // Assert
+        Assert.Equal(["2/5", "5/6", "2/6"], alternatives.Select(alternative => alternative.Text));
+        Assert.Equal([1, 2, 3], alternatives.Select(alternative => alternative.Position));
+    }
+
+    [Fact(DisplayName = "A lista de alternativas sai na ordem do conteúdo, e não na do id")]
+    public void Alternatives_AreOrderedByPositionNotById()
+    {
+        // Arrange: a correta é criada por último, então o id dela é o maior, e ela vem no meio do conteúdo
+        var first = Alternative.Wrong("2/5", ErrorTypeId);
+        var second = Alternative.Wrong("2/6", ErrorTypeId);
+        var correct = Alternative.Correct("5/6");
+
+        // Act
+        var exercise = CreateWith([first, correct, second]);
+
+        // Assert
+        Assert.Equal(["2/5", "5/6", "2/6"], exercise.Alternatives.Select(alternative => alternative.Text));
+    }
+
+    [Fact(DisplayName = "Revisar com as alternativas em outra ordem muda as posições e mantém os ids")]
+    public void Revise_ReordersTheAlternativesKeepingTheirIds()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId), Alternative.Wrong("2/6", ErrorTypeId)]);
+        var idByText = exercise.Alternatives.ToDictionary(alternative => alternative.Text, alternative => alternative.Id);
+
+        // Act
+        exercise.Revise(
+            LessonId, 1, Statement, Difficulty.Easy,
+            [Alternative.Wrong("2/6", ErrorTypeId), Alternative.Wrong("2/5", ErrorTypeId), Alternative.Correct("5/6")]);
+
+        // Assert
+        var alternatives = exercise.Alternatives.ToList();
+        Assert.Equal(["2/6", "2/5", "5/6"], alternatives.Select(alternative => alternative.Text));
+        Assert.Equal([1, 2, 3], alternatives.Select(alternative => alternative.Position));
+        Assert.All(alternatives, alternative => Assert.Equal(idByText[alternative.Text], alternative.Id));
+    }
+
+    [Fact(DisplayName = "Revisar com uma alternativa nova no meio a põe no lugar que a lista dá, e as outras acompanham")]
+    public void Revise_InsertsANewAlternativeAtItsPlace()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Correct("5/6"), Alternative.Wrong("2/6", ErrorTypeId)]);
+
+        // Act
+        exercise.Revise(
+            LessonId, 1, Statement, Difficulty.Easy,
+            [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId), Alternative.Wrong("2/6", ErrorTypeId)]);
+
+        // Assert
+        Assert.Equal(["5/6", "2/5", "2/6"], exercise.Alternatives.Select(alternative => alternative.Text));
+        Assert.Equal([1, 2, 3], exercise.Alternatives.Select(alternative => alternative.Position));
+    }
+
+    [Fact(DisplayName = "Revisar muda o lugar do exercício na lição")]
+    public void Revise_ChangesThePosition()
+    {
+        // Arrange
+        var exercise = CreateWith(ValidAlternatives());
+
+        // Act
+        exercise.Revise(LessonId, 4, Statement, Difficulty.Easy, ValidAlternatives());
+
+        // Assert
+        Assert.Equal(4, exercise.Position);
+    }
+
+    [Fact(DisplayName = "Revisar com posição inválida é recusado, e a ordem das alternativas não muda")]
+    public void Revise_WithAPositionBelowOne_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId)]);
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => exercise.Revise(
+            LessonId, 0, Statement, Difficulty.Easy, [Alternative.Wrong("2/5", ErrorTypeId), Alternative.Correct("5/6")]));
+
+        // Assert
+        Assert.Equal("exercise.position.invalid", exception.Code);
+        Assert.Equal(1, exercise.Position);
+        Assert.Equal(["5/6", "2/5"], exercise.Alternatives.Select(alternative => alternative.Text));
     }
 }

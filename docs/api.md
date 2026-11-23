@@ -1,6 +1,6 @@
 # API REST — contrato da v1
 
-Este é o contrato que o app (Expo + TypeScript, repositório [`estudarias-mobile`](https://github.com/LHPalma/estudarias-mobile)) consome. Ele cobre as sete telas do protótipo: login, trilha, mapa, tópico, exercício, diagnóstico do erro e revisão. A sessão (`/auth/*`) e o perfil (`/me`) já estão no ar e são descritos no [README](../README.md#autenticação); o restante deste documento é o alvo dos próximos PRs, e cada seção diz em qual issue entra.
+Este é o contrato que o app (Expo + TypeScript, repositório [`estudarias-mobile`](https://github.com/LHPalma/estudarias-mobile)) consome. Ele cobre as sete telas do protótipo: login, trilha, mapa, tópico, exercício, diagnóstico do erro e revisão. A sessão (`/auth/*`), o perfil (`/me`) e a trilha (`GET /trail`) já estão no ar e são descritos no [README](../README.md#autenticação); o restante deste documento é o alvo dos próximos PRs, e cada seção diz em qual issue entra.
 
 Toda a regra fica no servidor. O app não calcula nota, desbloqueio nem agendamento: mostra o que a API devolve e decide quais botões aparecem pelos **links** de cada recurso.
 
@@ -27,6 +27,7 @@ Cada recurso traz `links`: as ações que o aluno pode fazer naquele estado (for
 | `trail` | perfil, tópico | sempre |
 | `topic` | item da trilha, tópico desbloqueado | sempre (o tópico bloqueado abre para mostrar o que falta) |
 | `lesson` | item de lição | só se o tópico não está bloqueado |
+| `attempts` | tópico | só se o tópico não está bloqueado |
 | `answer` | exercício | só se o tópico não está bloqueado |
 | `reviews` | trilha | sempre |
 | `review` | cartão | só se a revisão venceu |
@@ -64,6 +65,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "mastered",
       "score": 86.4,
       "prerequisites": [],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000001", "rel": "topic", "method": "GET" }]
     },
     {
@@ -73,6 +76,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "available",
       "score": 42.0,
       "prerequisites": ["0192f0c4-0001-7000-8000-000000000001"],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000002", "rel": "topic", "method": "GET" }]
     },
     {
@@ -82,6 +87,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "locked",
       "score": null,
       "prerequisites": ["0192f0c4-0001-7000-8000-000000000002"],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000003", "rel": "topic", "method": "GET" }]
     }
   ],
@@ -94,7 +101,10 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
 
 - `status`: `locked`, `available` ou `mastered`. Um tópico liberado nunca volta a `locked`.
 - `score`: `null` enquanto o aluno não respondeu nada no tópico.
+- `completedLessons` e `totalLessons`: quantas lições do tópico o aluno concluiu, de quantas (veja o estado da lição, no tópico). Concluir as lições **não** domina o tópico: quem libera a trilha é a nota.
 - `dueReviews`: cartões com revisão vencida, para o aviso "N revisões para hoje".
+- **Links:** o `self` da trilha, o `topic` de cada item e o `reviews`, que leva às revisões do dia.
+- A nota usa as 10 respostas mais recentes do aluno no tópico. A trilha de um aluno que ainda não tem a raiz liberada a libera antes de responder (idempotente).
 
 ## Tópico — `GET /topics/{topicId}`
 
@@ -117,6 +127,9 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
       "id": "0192f0c4-0003-7000-8000-000000000001",
       "order": 1,
       "title": "Soma de frações com denominadores diferentes",
+      "status": "inProgress",
+      "completedExercises": 1,
+      "totalExercises": 3,
       "links": [{ "href": ".../lessons/0192f0c4-0003-7000-8000-000000000001", "rel": "lesson", "method": "GET" }]
     }
   ],
@@ -128,8 +141,46 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
 ```
 
 - Dominar o tópico exige `score >= masteryThreshold` **e** `attemptCount >= minAttempts`.
+- `attemptCount` é o total de tentativas do aluno no tópico (todas, e não só as da janela da nota); `score` usa as 10 mais recentes.
+- `lessons` vêm por `order`, sem o conteúdo (que só sai em `GET /lessons/{id}`). 
+- **Estado da lição** (`status`, `completedExercises`, `totalExercises`), derivado das tentativas do aluno nos exercícios da lição, sem estado novo:
+  - `notStarted`: nenhuma tentativa em nenhum exercício da lição;
+  - `inProgress`: pelo menos uma tentativa, mas ainda há exercício que o aluno nunca acertou;
+  - `completed`: o aluno acertou **cada** exercício da lição pelo menos uma vez, em qualquer tentativa.
+  - `completedExercises` conta os exercícios acertados pelo menos uma vez (cada um uma vez só). Errar depois um exercício já acertado **não** desfaz a conclusão. Uma lição sem exercícios é `notStarted`, 0 de 0, e nunca `completed`. Se a carga do conteúdo acrescentar um exercício a uma lição concluída, ela volta a `inProgress` até o aluno acertá-lo.
+  - Concluir a lição não domina o tópico (e o tópico pode ser dominado antes de todas as lições estarem concluídas). Os dois grupos experimentais veem o mesmo estado.
 - `unlocks`: os tópicos que têm este como pré-requisito.
 - Erros: `404 trail.topic.notFound`.
+
+## Histórico de respostas — `GET /topics/{topicId}/attempts`
+
+As respostas do aluno no tópico que **entram na nota**: as 10 mais recentes, da mais recente para a mais antiga. Serve ao app para mostrar o histórico que explica por que a nota subiu ou caiu.
+
+```json
+{
+  "items": [
+    {
+      "attemptId": "0192f0c4-0008-7000-8000-000000000003",
+      "exerciseId": "0192f0c4-0004-7000-8000-000000000001",
+      "statement": "Quanto é 1/2 + 1/3?",
+      "difficulty": "medium",
+      "isCorrect": false,
+      "answeredAt": "2026-11-16T13:00:00Z"
+    }
+  ],
+  "links": [
+    { "href": ".../topics/0192f0c4-0001-7000-8000-000000000002/attempts", "rel": "self", "method": "GET" },
+    { "href": ".../topics/0192f0c4-0001-7000-8000-000000000002", "rel": "topic", "method": "GET" }
+  ]
+}
+```
+
+- `difficulty`: `easy`, `medium` ou `hard`.
+- É exatamente a janela da nota, no mesmo critério de ordenação que o cálculo: refazer a nota por estas respostas dá a nota do tópico. Quando o aluno tem mais de 10 respostas, as mais antigas não aparecem (o `attemptCount` do tópico segue contando todas).
+- Não traz a alternativa escolhida nem a correta: o histórico explica a nota, e não revisa o exercício.
+- Um tópico liberado sem respostas devolve `200` com `items: []`.
+- O link `attempts` do tópico só existe quando ele não está bloqueado.
+- Erros: `404 trail.topic.notFound`; `403 student.topic.locked` se o tópico está bloqueado.
 
 ## Lição — `GET /lessons/{lessonId}`
 
@@ -165,7 +216,9 @@ O conteúdo da lição e os exercícios dela, **sem o gabarito**: nenhuma altern
 
 - `content`: texto da lição, com quebras de linha. O formato é texto simples por ora; se a equipe adotar Markdown, este campo continua o mesmo.
 - `difficulty`: `easy`, `medium` ou `hard`.
-- As alternativas vêm na ordem do conteúdo.
+- Exercícios e alternativas vêm na ordem do conteúdo, que é gravada (`position`, #104); o `id` não serve de ordem.
+- Nenhum campo, em nenhum nível, diz qual alternativa é a correta, nem o tipo de erro de cada errada: a consulta nem lê essas colunas.
+- Cada exercício traz o link `answer` (`POST /exercises/{id}/attempts`).
 - Erros: `404 trail.lesson.notFound`; `403 student.topic.locked` se o tópico da lição está bloqueado.
 
 ## Responder exercício — `POST /exercises/{exerciseId}/attempts`
@@ -180,7 +233,7 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 
 - `responseSeconds`: opcional, tempo até responder (inteiro, 0 ou mais). Vai para a análise do experimento.
 
-**Resposta `201 Created`** (`Location` aponta para a tentativa)
+**Resposta `201 Created`** (sem `Location`: a tentativa não tem um recurso próprio para ler, e uma rota inexistente não gera link, ADR-004)
 
 ```json
 {
@@ -196,6 +249,7 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
     }
   },
   "topic": { "id": "0192f0c4-0001-7000-8000-000000000002", "status": "available", "score": 38.5, "attemptCount": 4 },
+  "lesson": { "id": "0192f0c4-0003-7000-8000-000000000001", "status": "inProgress", "completedExercises": 1, "totalExercises": 3 },
   "unlockedTopics": [],
   "flashcard": { "id": "0192f0c4-000d-7000-8000-000000000002", "nextReviewAt": "2026-11-17T13:00:00Z" },
   "links": [
@@ -207,12 +261,14 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 
 - `feedback.kind`: `correct`, `incorrect` ou `incorrectWithDiagnosis`. O grupo **diagnóstico** recebe `incorrectWithDiagnosis`, com `errorType`; o grupo **controle** recebe `incorrect`, com `errorType: null`. As mensagens ("Resposta correta", "Resposta incorreta") são do app.
 - `unlockedTopics`: `[{ "id", "name" }]` dos tópicos liberados por esta resposta, para o aviso de desbloqueio. Vazio na maioria das respostas.
-- `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, ou o aluno já tem o cartão desse tipo de erro).
+- `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, o aluno já tem o cartão desse tipo de erro, ou o conteúdo não tem flashcard para ele). O cartão nasce **nos dois grupos** (ADR-005). `id` é o id do cartão do aluno, o que `POST /reviews/{id}` usa.
+- O aluno e o grupo experimental são os do token: um `experimentalGroup` ou `studentId` no corpo é ignorado.
+- `links`: o `topic` (para a tela voltar ao tópico com a nota nova) e o `reviews` (para a tela ir às revisões do dia). - `lesson`: a lição do exercício com o estado **já com esta resposta** (`notStarted`, `inProgress` ou `completed`, e os exercícios acertados, de quantos), para a tela de fim de lição mostrar "Lição concluída" só quando for verdade.
 - Erros: `404 trail.exercise.notFound`; `400 answer.alternative.notInExercise`; `400 attempt.responseTime.invalid`; `403 student.topic.locked`.
 
 ## Revisões do dia — `GET /reviews/due`
 
-Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente. A resposta vem junto: virar o cartão é coisa do app.
+Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente. A resposta vem junto: virar o cartão é coisa do app. Sem cartões vencidos (ou sem nenhum cartão), `count: 0` e `items: []`. O `id` de cada item é o do cartão do aluno, o que `POST /reviews/{id}` usa.
 
 ```json
 {
@@ -257,9 +313,13 @@ Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente.
 ```
 
 - Revisar antes do vencimento é aceito; o link `review` só aparece quando venceu.
+- A próxima revisão parte do **instante em que o aluno revisou**, e não da data agendada. No SM-2: `again` recomeça (1 dia), a primeira revisão correta mantém 1 dia, a segunda leva a 6, e as seguintes multiplicam pelo fator de facilidade.
+- `rating` é texto em minúsculas; `Good`, uma nota desconhecida ou ausente é `400`.
+- Revisar não é uma tentativa: não muda a nota nem o status do tópico.
+- Duas revisões simultâneas do mesmo cartão: a última gravação vale (PEND-REV-02).
 - Erros: `404 review.card.notFound` (também para o cartão de outro aluno); `400 studentFlashcard.rating.invalid`.
 
 ## Desenvolvimento do app
 
-- Em Development a API aceita requisições de qualquer origem (CORS), para o Expo na web; em produção, só as origens configuradas.
+- Em Development a API aceita requisições de qualquer origem (CORS), para o Expo na web; nos demais ambientes, só as origens de `Cors__AllowedOrigins__N` (veja o [README](../README.md#cors)).
 - Com a API no ar em Development, o documento OpenAPI fica em `/openapi/v1.json`, gerado do código: quando divergir deste contrato, o código manda e este arquivo é corrigido no mesmo PR.

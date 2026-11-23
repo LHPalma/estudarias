@@ -156,6 +156,18 @@ A chave é o segredo mais sensível do módulo: com ela se forja o token de qual
 (no máximo 15 minutos de sessão): os refresh tokens ficam no banco e continuam valendo, então o app renova a sessão sozinho e recebe um token
 assinado com a chave nova.
 
+## CORS
+
+O app aberto no navegador (o Expo na web) só chama a API se ela liberar a origem dele. Em Development qualquer origem é aceita, porque a
+porta do Expo web varia. Nos demais ambientes, só as origens da configuração; sem nenhuma, nenhuma origem é liberada. O app nativo não usa CORS.
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `Cors__AllowedOrigins__0`, `__1`... | nenhuma | as origens liberadas fora de Development, cada uma como o navegador a manda: esquema, host e porta, sem caminho nem barra no fim (`https://app.estudarias.com.br`) |
+
+Uma origem mal escrita (o curinga `*`, uma barra no fim, um caminho) derruba a subida: abrir a API para qualquer site tem de ser uma
+decisão visível, e uma barra a mais nunca bateria com o cabeçalho `Origin`. Não há credenciais em CORS: o app manda o token no `Authorization`.
+
 ## API de autenticação
 
 Os quatro endpoints são os únicos abertos da API (fora o `/health`). Todos recebem e devolvem JSON. O arquivo `src/Estudarias.Api/Estudarias.Api.http` tem uma chamada de cada.
@@ -201,14 +213,17 @@ Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `cod
 {
   "user": { "id": "0192f0c4-...", "email": "ana@example.com", "role": "Student" },
   "student": { "id": "0192f0c4-...", "name": "Ana Souza", "experimentalGroup": "Diagnostic" },
-  "links": [{ "href": "http://localhost:5007/me", "rel": "self", "method": "GET" }]
+  "links": [
+    { "href": "http://localhost:5007/me", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
 }
 ```
 
-- `links` são as ações a partir do recurso, com URL absoluta (veja o [ADR-004](docs/adr/0004-action-links.md)). Por enquanto só o `self`; o `trail` entra com o `GET /trail`.
+- `links` são as ações a partir do recurso, com URL absoluta (veja o [ADR-004](docs/adr/0004-action-links.md)): o `self` e o `trail`, que leva à trilha.
 - `user` é a conta de acesso, e `student` é o perfil de estudo ligado a ela, separados como no domínio. `student.id` é o `studentId` que o login devolve.
 - `experimentalGroup` é `Control` ou `Diagnostic` e diz ao app qual versão da experiência mostrar. O grupo é sorteado no cadastro e não muda.
-- O progresso por tópico ainda não faz parte da resposta (o `student_topic` não está mapeado).
+- O progresso por tópico não faz parte do perfil: sai na trilha (`GET /trail`).
 
 | Status | Quando | `code` |
 |---|---|---|
@@ -216,3 +231,139 @@ Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `cod
 | `401` | token válido de uma conta que não existe mais ou foi desabilitada, sem distinção | `identity.session.invalid` |
 
 Ao receber `401` o app tenta `/auth/refresh`; se a renovação também falhar, volta para o login.
+
+## API da trilha
+
+`GET /trail` devolve a trilha do aluno logado: os tópicos em ordem de pré-requisito, com o status e a nota de cada um, e os totais que a tela
+mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha--get-trail).
+
+```json
+{
+  "masteryThreshold": 70,
+  "masteredTopics": 0,
+  "totalTopics": 2,
+  "dueReviews": 0,
+  "topics": [
+    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "completedLessons": 1, "totalLessons": 2, "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] },
+    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "completedLessons": 0, "totalLessons": 2, "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] }
+  ],
+  "links": [{ "href": "http://localhost:5007/trail", "rel": "self", "method": "GET" }]
+}
+```
+
+- `status` é `locked`, `available` ou `mastered`. `score` vai de 0 a 100, com uma casa e **arredondada para baixo** (69,95 sai `69.9`, nunca `70.0`), e é `null` enquanto o aluno não respondeu nada no tópico. A nota usa as 10 respostas mais recentes do aluno no tópico.
+- Os tópicos sem pré-requisito já vêm `available` para o aluno novo: o cadastro os libera, e abrir a trilha os libera de novo para quem se cadastrou antes de existir conteúdo (é a única escrita do endpoint, e é idempotente).
+- `dueReviews` conta os cartões do aluno cuja próxima revisão já chegou.
+- Cada item traz o link `topic`, e a trilha traz o `reviews`, que leva às revisões do dia.
+- É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed content/`); sem ele a trilha vem vazia.
+
+Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), e conta que não existe ou foi desabilitada (`identity.session.invalid`).
+
+## API do tópico e da lição
+
+`GET /topics/{id}` devolve o tópico do aluno logado, e `GET /lessons/{id}`, a lição. O contrato completo está em [`docs/api.md`](docs/api.md#tópico--get-topicstopicid). As duas são leituras (ADR-002) e não gravam nada.
+
+```json
+{
+  "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "available",
+  "score": 42.0, "attemptCount": 3, "masteryThreshold": 70, "minAttempts": 5,
+  "prerequisites": [{ "id": "0192f0c4-...", "name": "Operações básicas", "status": "mastered" }],
+  "unlocks": [{ "id": "0192f0c4-...", "name": "Equações do 1º grau" }],
+  "lessons": [{ "id": "0192f0c4-...", "order": 1, "title": "Soma de frações", "status": "inProgress", "completedExercises": 1, "totalExercises": 3, "links": [{ "href": "http://localhost:5007/lessons/0192f0c4-...", "rel": "lesson", "method": "GET" }] }],
+  "links": [
+    { "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
+}
+```
+
+- **Estado da lição:** cada lição do tópico traz `status` (`notStarted`, `inProgress` ou `completed`) e os exercícios acertados, de quantos. Concluída é ter acertado **cada** exercício pelo menos uma vez; é derivado das tentativas, e errar depois não desfaz. A trilha traz `completedLessons` e `totalLessons` de cada tópico, e a resposta de responder traz a `lesson` já com a resposta nova. Concluir a lição não domina o tópico.
+- **Tópico bloqueado abre** (`200`): a tela mostra o que falta, e as lições vêm **sem o link `lesson`**. `attemptCount` é o total de tentativas no tópico; `score` usa as 10 mais recentes.
+- **A lição nunca revela o gabarito:** cada alternativa só tem `id` e `text`, e a consulta nem lê `is_correct` nem `error_type_id`. Exercícios e alternativas vêm na ordem do conteúdo (gravada em `position`).
+- Cada exercício traz o link `answer` (`POST /exercises/{id}/attempts`).
+- **Histórico de respostas:** `GET /topics/{id}/attempts` devolve as respostas que entram na nota (as 10 mais recentes, da mais recente para a mais antiga), com o enunciado, a dificuldade e se acertou, e sem a alternativa escolhida nem a correta. Refazer a nota por elas dá a nota do tópico. O link `attempts` do tópico só existe quando ele está liberado.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `403` | a lição, ou o histórico, de um tópico bloqueado | `student.topic.locked` |
+| `404` | tópico ou lição que não existe | `trail.topic.notFound`, `trail.lesson.notFound` |
+
+## API de responder um exercício
+
+`POST /exercises/{id}/attempts` registra a resposta do aluno logado e devolve, de uma vez, o que a tela do retorno precisa. É o ciclo do produto numa chamada: **errar, diagnosticar, flashcard, nota, desbloqueio**. O contrato completo está em [`docs/api.md`](docs/api.md#responder-exercício--post-exercisesexerciseidattempts).
+
+```json
+// POST /exercises/0192f0c4-.../attempts
+{ "alternativeId": "0192f0c4-...", "responseSeconds": 48 }
+```
+
+```json
+// 201 Created
+{
+  "attemptId": "0192f0c4-...",
+  "isCorrect": false,
+  "correctAlternativeId": "0192f0c4-...",
+  "feedback": { "kind": "incorrectWithDiagnosis", "correctAnswer": "5/6", "errorType": { "name": "Soma direta de numeradores e denominadores", "feedback": "..." } },
+  "topic": { "id": "0192f0c4-...", "status": "available", "score": 38.5, "attemptCount": 4 },
+  "lesson": { "id": "0192f0c4-...", "status": "inProgress", "completedExercises": 1, "totalExercises": 3 },
+  "unlockedTopics": [],
+  "flashcard": { "id": "0192f0c4-...", "nextReviewAt": "2026-11-17T13:00:00+00:00" },
+  "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }]
+}
+```
+
+- O retorno depende do grupo, e só dele: o grupo **diagnóstico** recebe `incorrectWithDiagnosis` com o tipo de erro; o **controle** recebe `incorrect` com `errorType: null`. A estrutura é a mesma. O grupo vem do aluno gravado, nunca do corpo.
+- **O cartão nasce nos dois grupos** ([ADR-005](docs/adr/0005-flashcard-in-both-groups.md)): errar cria o cartão do tipo de erro, uma vez por aluno e por tipo. O controle vê o diagnóstico ao revisar, o que é uma limitação declarada da análise.
+- A nota já inclui a resposta que acabou de chegar (as 10 mais recentes), e o domínio e o desbloqueio são avaliados na mesma chamada. Tentativa, progresso e cartão são gravados juntos.
+- Responde `201` sem `Location`, porque a tentativa não tem um recurso próprio para ler.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `400` | alternativa que não é do exercício (ou ausente); tempo de resposta negativo | `answer.alternative.notInExercise`, `attempt.responseTime.invalid` |
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `403` | o tópico do exercício está bloqueado | `student.topic.locked` |
+| `404` | o exercício não existe | `trail.exercise.notFound` |
+| `415` | corpo que não é JSON | sem `code` |
+
+## API das revisões
+
+`GET /reviews/due` lista as revisões do dia do aluno logado, e `POST /reviews/{id}` registra uma revisão. O contrato completo está em [`docs/api.md`](docs/api.md#revisões-do-dia--get-reviewsdue).
+
+```json
+// GET /reviews/due
+{
+  "count": 1,
+  "items": [{
+    "id": "0192f0c4-...",
+    "question": "Por que 1/2 + 1/3 não é 2/5?",
+    "answer": "Porque só se somam numeradores quando os denominadores são iguais.",
+    "topic": { "id": "0192f0c4-...", "name": "Frações" },
+    "nextReviewAt": "2026-11-16T13:00:00+00:00",
+    "links": [{ "href": "http://localhost:5007/reviews/0192f0c4-...", "rel": "review", "method": "POST" }]
+  }],
+  "links": [
+    { "href": "http://localhost:5007/reviews/due", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
+}
+```
+
+```json
+// POST /reviews/0192f0c4-...   { "rating": "good" }   ->   200 OK
+{ "id": "0192f0c4-...", "nextReviewAt": "2026-11-22T13:00:00+00:00", "links": [{ "href": "http://localhost:5007/reviews/due", "rel": "reviews", "method": "GET" }] }
+```
+
+- A lista traz só os cartões **vencidos**, do mais atrasado ao mais recente, já com a pergunta e a resposta: virar o cartão é coisa do app. Sem nenhum, `count: 0`.
+- `rating` é `again`, `hard`, `good` ou `easy`, em minúsculas. A próxima revisão parte do **instante em que o aluno revisou** (SM-2, [ADR-003](docs/adr/0003-spaced-repetition-scheduler.md)). Revisar antes do vencimento é aceito.
+- O cartão é do aluno do token: o de outro aluno responde `404`, igual a um que não existe. O agendador é o do algoritmo gravado no cartão.
+- Revisar **não** é uma tentativa: não muda a nota nem o status do tópico. Duas revisões simultâneas do mesmo cartão: a última gravação vale.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `400` | nota ausente, em maiúsculas ou desconhecida | `studentFlashcard.rating.invalid` |
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `404` | cartão que não existe ou é de outro aluno | `review.card.notFound` |
+| `415` | corpo que não é JSON | sem `code` |
+| `500` | algoritmo do cartão sem agendador, ou estado de agendamento corrompido | sem `code`, sem detalhe técnico |
+

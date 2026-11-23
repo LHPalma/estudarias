@@ -1,6 +1,8 @@
 using Estudarias.Application.Common;
 using Estudarias.Application.Students;
+using Estudarias.Application.Topics;
 using Estudarias.Domain.Identity;
+using Estudarias.Domain.Mastery;
 using Estudarias.Domain.Students;
 
 namespace Estudarias.Application.Identity;
@@ -9,12 +11,14 @@ public sealed record RegisterStudentCommand(string Name, string Email, string Pa
 
 /// <summary>
 /// O aluno se cadastra sozinho: cria o perfil de estudo (<see cref="Student"/>, já no grupo do experimento) e a conta de acesso
-/// (<see cref="User"/>) ligados por <see cref="User.StudentId"/>, e devolve uma sessão aberta, então ele já entra logado. Aluno e
-/// conta são gravados juntos: se a conta falha, o aluno também não entra.
+/// (<see cref="User"/>) ligados por <see cref="User.StudentId"/>, e devolve uma sessão aberta, então ele já entra logado. O aluno
+/// já nasce com os tópicos sem pré-requisito liberados. Aluno, progresso e conta são gravados juntos: se a conta falha, o aluno
+/// também não entra.
 /// </summary>
 public sealed class RegisterStudentHandler(
     IUserRepository users,
     IStudentRepository students,
+    ITopicRepository topics,
     IRefreshTokenRepository refreshTokens,
     IPasswordHasher hasher,
     IExperimentalGroupAssigner groups,
@@ -36,6 +40,7 @@ public sealed class RegisterStudentHandler(
         }
 
         var student = Student.Create(command.Name, groups.Assign());
+        TopicMastery.UnlockInitial(student, await topics.ListAsync(cancellationToken), clock);
         var user = User.RegisterStudent(email, hasher.Hash(password), student.Id);
         var (refreshToken, rawRefreshToken) = SessionTokens.IssueRefreshToken(user.Id, Guid.CreateVersion7(), now);
 

@@ -74,7 +74,7 @@ public sealed class StudentFlashcard : BaseEntity, IAggregateRoot
 
         if (!Enum.IsDefined(rating))
         {
-            throw new DomainValidationException(StudentFlashcardErrors.RatingInvalid, "Review rating is not valid.");
+            throw StudentFlashcardErrors.InvalidRating();
         }
 
         if (scheduler.Algorithm != Algorithm)

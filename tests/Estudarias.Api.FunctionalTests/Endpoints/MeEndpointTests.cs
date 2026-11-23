@@ -42,11 +42,27 @@ public class MeEndpointTests(PostgresFixture postgres) : AuthEndpointsTests(post
         var me = await JsonAsync(await GetWithTokenAsync("/me", AccessTokenOf(session)));
 
         // Assert
-        var link = Assert.Single(me.GetProperty("links").EnumerateArray());
+        var link = me.GetProperty("links").EnumerateArray().Single(candidate => candidate.GetProperty("rel").GetString() == "self");
         Assert.Equal(["href", "method", "rel"], link.EnumerateObject().Select(property => property.Name).Order());
-        Assert.Equal("self", link.GetProperty("rel").GetString());
         Assert.Equal("GET", link.GetProperty("method").GetString());
         Assert.Equal("http://localhost/me", link.GetProperty("href").GetString());
+    }
+
+    [Fact(DisplayName = "O perfil traz o link trail, com a URL absoluta da trilha")]
+    public async Task Me_LinksToTheTrail()
+    {
+        // Arrange
+        var session = await RegisterAsync();
+
+        // Act
+        var me = await JsonAsync(await GetWithTokenAsync("/me", AccessTokenOf(session)));
+
+        // Assert
+        var links = me.GetProperty("links").EnumerateArray().ToList();
+        Assert.Equal(["self", "trail"], links.Select(link => link.GetProperty("rel").GetString()));
+        var trail = links.Single(link => link.GetProperty("rel").GetString() == "trail");
+        Assert.Equal("GET", trail.GetProperty("method").GetString());
+        Assert.Equal("http://localhost/trail", trail.GetProperty("href").GetString());
     }
 
     [Fact(DisplayName = "O link self do perfil leva de volta ao mesmo perfil")]

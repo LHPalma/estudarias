@@ -33,7 +33,7 @@ internal sealed record SampleContent(
         var lesson = Lesson.Create(fractions.Id, 1, "Soma de frações", "Para somar {1/2} + {1/3}, encontre um denominador comum.");
 
         var exercise = Exercise.Create(
-            lesson.Id,
+            lesson.Id, 1,
             "soma_de_meios_e_tercos",
             "Quanto é 1/2 + 1/3?",
             Difficulty.Medium,

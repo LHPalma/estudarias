@@ -89,6 +89,127 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
         return ids.Order().ToList();
     });
 
+    private static string Ordered(string firstExercise, string secondExercise) => $$"""
+        slug: ordem
+        name: Ordem
+        errorTypes:
+          - code: erro_a
+            name: Erro A
+            feedback: Feedback A.
+        lessons:
+          - order: 1
+            title: Lição
+            content: Texto.
+            exercises:
+        {{firstExercise}}
+        {{secondExercise}}
+        """;
+
+    private const string ExerciseOne = """
+              - code: primeiro
+                statement: Pergunta 1
+                difficulty: easy
+                alternatives:
+                  - text: "A"
+                    errorType: erro_a
+                  - text: "B"
+                    correct: true
+                  - text: "C"
+                    errorType: erro_a
+        """;
+
+    private const string ExerciseTwo = """
+              - code: segundo
+                statement: Pergunta 2
+                difficulty: hard
+                alternatives:
+                  - text: "X"
+                    correct: true
+                  - text: "Y"
+                    errorType: erro_a
+        """;
+
+    private const string ExerciseOneReversed = """
+              - code: primeiro
+                statement: Pergunta 1
+                difficulty: easy
+                alternatives:
+                  - text: "C"
+                    errorType: erro_a
+                  - text: "B"
+                    correct: true
+                  - text: "A"
+                    errorType: erro_a
+        """;
+
+    private Task<List<(string Code, int Position, string[] Alternatives, int[] AlternativePositions)>> OrderedExercisesAsync() =>
+        ReadAsync(async db =>
+        {
+            var exercises = await db.Exercises.ToListAsync(Cancel);
+            return exercises
+                .OrderBy(exercise => exercise.Position)
+                .Select(exercise => (
+                    exercise.Code,
+                    exercise.Position,
+                    exercise.Alternatives.Select(alternative => alternative.Text).ToArray(),
+                    exercise.Alternatives.Select(alternative => alternative.Position).ToArray()))
+                .ToList();
+        });
+
+    [Fact(DisplayName = "A carga grava a ordem do arquivo: a dos exercícios na lição e a das alternativas em cada exercício")]
+    public async Task Load_RecordsTheOrderOfTheFile()
+    {
+        // Act
+        var result = await LoadAsync(Folder(("ordem.yaml", Ordered(ExerciseOne, ExerciseTwo))));
+
+        // Assert
+        Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
+        var exercises = await OrderedExercisesAsync();
+        Assert.Equal(["primeiro", "segundo"], exercises.Select(exercise => exercise.Code));
+        Assert.Equal([1, 2], exercises.Select(exercise => exercise.Position));
+        Assert.Equal(["A", "B", "C"], exercises[0].Alternatives);
+        Assert.Equal([1, 2, 3], exercises[0].AlternativePositions);
+        Assert.Equal(["X", "Y"], exercises[1].Alternatives);
+        Assert.Equal([1, 2], exercises[1].AlternativePositions);
+    }
+
+    [Fact(DisplayName = "Recarregar com a ordem trocada atualiza as posições e não troca nenhum id")]
+    public async Task Load_WithTheOrderChanged_UpdatesThePositionsKeepingTheIds()
+    {
+        // Arrange
+        await LoadAsync(Folder(("ordem.yaml", Ordered(ExerciseOne, ExerciseTwo))));
+        var idsBefore = await AllContentIdsAsync();
+
+        // Act: os exercícios trocam de lugar, e as alternativas do primeiro saem em ordem inversa
+        var result = await LoadAsync(Folder(("ordem.yaml", Ordered(ExerciseTwo, ExerciseOneReversed))));
+
+        // Assert
+        Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
+        Assert.Equal(0, result.Created);
+        Assert.Equal(2, result.Updated);
+        Assert.Equal(idsBefore, await AllContentIdsAsync());
+        var exercises = await OrderedExercisesAsync();
+        Assert.Equal(["segundo", "primeiro"], exercises.Select(exercise => exercise.Code));
+        Assert.Equal([1, 2], exercises.Select(exercise => exercise.Position));
+        Assert.Equal(["C", "B", "A"], exercises[1].Alternatives);
+        Assert.Equal([1, 2, 3], exercises[1].AlternativePositions);
+    }
+
+    [Fact(DisplayName = "Recarregar o mesmo arquivo com a mesma ordem não altera nada")]
+    public async Task Load_WithTheSameOrder_ChangesNothing()
+    {
+        // Arrange
+        var folder = Folder(("ordem.yaml", Ordered(ExerciseOne, ExerciseTwo)));
+        await LoadAsync(folder);
+
+        // Act
+        var result = await LoadAsync(folder);
+
+        // Assert
+        Assert.Equal((0, 0), (result.Created, result.Updated));
+        Assert.Equal(5, result.Unchanged);
+    }
+
     [Fact(DisplayName = "O conteúdo do repositório carrega inteiro: Operações básicas e Frações, com tudo o que cada um tem")]
     public async Task Load_TheRepositoryContent_CreatesEverything()
     {

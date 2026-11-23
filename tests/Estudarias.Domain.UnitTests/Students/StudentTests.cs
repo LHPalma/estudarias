@@ -212,4 +212,15 @@ public class StudentTests
         // Assert
         Assert.Equal(TopicStatus.Mastered, student.StatusOf(topicId));
     }
+
+    [Fact(DisplayName = "Pedir um tópico bloqueado é uma proibição (403), com o código student.topic.locked")]
+    public void LockedTopic_IsAForbiddenExceptionWithTheLockedCode()
+    {
+        // Act
+        var exception = StudentErrors.LockedTopic();
+
+        // Assert
+        Assert.IsType<DomainForbiddenException>(exception);
+        Assert.Equal("student.topic.locked", exception.Code);
+    }
 }

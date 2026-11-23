@@ -1,10 +1,14 @@
 using Estudarias.Application.Attempts;
 using Estudarias.Application.Common;
 using Estudarias.Application.Content;
+using Estudarias.Application.ErrorTypes;
+using Estudarias.Application.Exercises;
+using Estudarias.Application.Flashcards;
 using Estudarias.Infrastructure.Content;
 using Estudarias.Application.Identity;
 using Estudarias.Application.StudentFlashcards;
 using Estudarias.Application.Students;
+using Estudarias.Application.Topics;
 using Estudarias.Infrastructure.Experiment;
 using Estudarias.Infrastructure.Persistence;
 using Estudarias.Infrastructure.Persistence.Repositories;
@@ -35,6 +39,10 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IStudentRepository, StudentRepository>();
+        services.AddScoped<ITopicRepository, TopicRepository>();
+        services.AddScoped<IExerciseRepository, ExerciseRepository>();
+        services.AddScoped<IErrorTypeRepository, ErrorTypeRepository>();
+        services.AddScoped<IFlashcardRepository, FlashcardRepository>();
         services.AddScoped<IAttemptRepository, AttemptRepository>();
         services.AddScoped<IStudentFlashcardRepository, StudentFlashcardRepository>();
 

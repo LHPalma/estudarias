@@ -7,10 +7,10 @@ Um SRS por módulo. Cada um é a referência de aceite das issues do módulo: di
 | Módulo | Prefixo | Status | Issues | O que especifica |
 |---|---|---|---|---|
 | [Autenticação](SRS%20-%20M%C3%B3dulo%20de%20Autentica%C3%A7%C3%A3o.md) | sem prefixo (`RF-01`, `RN-01`...) | Implementado (o cabeçalho do SRS ainda diz "em implementação") | #35 e sub-issues (#36 a #41, #49) | Cadastro, login, sessão por refresh token, logout, grupo experimental e login obrigatório |
-| [Conteúdo](SRS%20-%20M%C3%B3dulo%20de%20Conte%C3%BAdo.md) | `CNT` | Rascunho; Domain pronto | #83, #85 | Tópicos e grafo de pré-requisitos, lições, exercícios, tipos de erro, flashcards, persistência e carga do seed YAML |
-| [Trilha e Progresso](SRS%20-%20M%C3%B3dulo%20de%20Trilha%20e%20Progresso.md) | `TRL` | Rascunho; regras do Domain prontas | #84, #86, #87, #91, #92 | Trilha, tópico, lição, nota, domínio, desbloqueio, estado da lição e histórico de respostas |
-| [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md) | `RSP` | Rascunho; regras do Domain prontas | #84, #88 | Responder exercício, diagnosticar o tipo de erro, retorno por grupo experimental e "erro gera flashcard" |
-| [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | `REV` | Rascunho; Domain pronto | #84, #89 | Cartão do aluno, revisões do dia, revisar e o SM-2 |
+| [Conteúdo](SRS%20-%20M%C3%B3dulo%20de%20Conte%C3%BAdo.md) | `CNT` | Implementado (v1) | #83, #85, #104 | Tópicos e grafo de pré-requisitos, lições, exercícios, tipos de erro, flashcards, persistência e carga do seed YAML |
+| [Trilha e Progresso](SRS%20-%20M%C3%B3dulo%20de%20Trilha%20e%20Progresso.md) | `TRL` | Implementado (v1) | #84, #86, #87, #91, #92 | Trilha, tópico, lição, nota, domínio, desbloqueio, estado da lição e histórico de respostas |
+| [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md) | `RSP` | Implementado (v1); resta a PEND-RSP-02 | #84, #88 | Responder exercício, diagnosticar o tipo de erro, retorno por grupo experimental e "erro gera flashcard" |
+| [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | `REV` | Implementado (v1) | #84, #89 | Cartão do aluno, revisões do dia, revisar e o SM-2 |
 
 A visão por issue está na [#81](https://github.com/LHPalma/estudarias/issues/81) (API do aprendizado v1), e a ordem de entrega, no corpo dela.
 
@@ -44,7 +44,7 @@ Cada requisito tem um id estável, que o código e o histórico citam:
 | Fluxo alternativo ou de exceção | `FA-<módulo>-NN` | `FA-RSP-07` |
 | Requisito não funcional | `RNF-<módulo>-NN` | `RNF-CNT-02` |
 | Premissa | `P-<módulo>-NN` | `P-TRL-01` |
-| Decisão pendente | `PEND-<módulo>-NN` | `PEND-RSP-01` |
+| Decisão pendente | `PEND-<módulo>-NN` | `PEND-RSP-02` |
 
 O SRS de Autenticação é anterior ao prefixo e usa `RF-01`, `RN-01` e assim por diante. Esses ids ficam como estão, porque os testes dele já os citam; um id sem prefixo é sempre da Autenticação.
 
@@ -88,10 +88,7 @@ Uma decisão em aberto não trava o SRS: ele escreve o requisito pela **proposta
 
 | Id | Pendência | Onde | Decidir antes de |
 |---|---|---|---|
-| `PEND-RSP-01` (e `PEND-REV-01`) | O flashcard no grupo controle: proposta de criar o cartão nos **dois** grupos, com um ADR | [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md), [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | #88 |
 | `PEND-RSP-02` | Tipo de erro sem flashcard no conteúdo | [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md) | #85 e #88 |
-| `PEND-TRL-01` | O que conta como `attemptCount` no domínio: todas as tentativas no tópico ou só a janela de 10 | [Trilha e Progresso](SRS%20-%20M%C3%B3dulo%20de%20Trilha%20e%20Progresso.md) | #87 e #88 |
-| `PEND-REV-02` | Revisões simultâneas do mesmo cartão | [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | #89 |
 
 ## Relação com os outros documentos
 

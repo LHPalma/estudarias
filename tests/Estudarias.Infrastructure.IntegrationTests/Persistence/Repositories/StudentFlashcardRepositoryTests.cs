@@ -183,4 +183,24 @@ public class StudentFlashcardRepositoryTests(PostgresFixture postgres) : Databas
             PostgresErrorCodes.ForeignKeyViolation,
             "FK_student_flashcard_flashcard_flashcard_id");
     }
+
+    [Fact(DisplayName = "Descartar um cartão marcado para gravar o tira da gravação, e o resto é gravado")]
+    public async Task Discard_RemovesTheCardFromThePendingWrite()
+    {
+        // Arrange
+        var (content, student) = await SeedAsync();
+        using var scope = NewScope();
+        var origin = Attempt.Create(student.Id, content.Exercise.Id, content.Wrong.Id, null, Clock);
+        var card = StudentFlashcard.Create(student.Id, content.Generated.Id, origin.Id, Scheduler, Clock);
+        scope.Attempts.Add(origin);
+        scope.StudentFlashcards.Add(card);
+
+        // Act
+        scope.StudentFlashcards.Discard(card);
+        await scope.UnitOfWork.SaveChangesAsync(Cancel);
+
+        // Assert
+        Assert.Equal(1L, await ScalarAsync<long>("SELECT count(*) FROM attempt"));
+        Assert.Equal(0L, await ScalarAsync<long>("SELECT count(*) FROM student_flashcard"));
+    }
 }

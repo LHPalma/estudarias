@@ -39,6 +39,8 @@ public class DomainExceptionHandlerTests
     [Theory(DisplayName = "RNF-06: cada exceção de domínio vira o status certo, com o código do erro em code")]
     [InlineData(typeof(DomainValidationException), 400, "Validation error")]
     [InlineData(typeof(DomainAuthenticationException), 401, "Authentication failed")]
+    [InlineData(typeof(DomainForbiddenException), 403, "Forbidden")]
+    [InlineData(typeof(DomainNotFoundException), 404, "Not found")]
     [InlineData(typeof(DomainConflictException), 409, "Conflict")]
     public async Task TryHandle_MapsEachDomainExceptionToItsStatus(Type type, int status, string title)
     {

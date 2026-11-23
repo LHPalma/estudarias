@@ -11,7 +11,10 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
     public void Configure(EntityTypeBuilder<Exercise> builder)
     {
         builder.ToTable("exercise", table =>
-            table.HasCheckConstraint("ck_exercise_difficulty", "difficulty IN ('easy', 'medium', 'hard')"));
+        {
+            table.HasCheckConstraint("ck_exercise_difficulty", "difficulty IN ('easy', 'medium', 'hard')");
+            table.HasCheckConstraint("ck_exercise_position", "position >= 1");
+        });
 
         builder.HasKey(exercise => exercise.Id);
         builder.Property(exercise => exercise.Id).HasColumnName("id").ValueGeneratedNever();
@@ -29,6 +32,11 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
             .IsUnique()
             .HasDatabaseName("ux_exercise_lesson_id_code");
 
+        // A ordem do exercício na lição, como a da lição no tópico: o id não serve de ordem (um Guid v7 não cresce dentro de uma
+        // rajada de criação). Sem índice único: a recarga do conteúdo pode trocar duas posições, e uma restrição de unicidade
+        // recusaria a troca no meio da gravação.
+        builder.Property(exercise => exercise.Position).HasColumnName("position");
+
         builder.Property(exercise => exercise.Statement).HasColumnName("statement").IsRequired();
 
         // Gravada em minúsculas, com a conversão explícita (como no student): renomear um membro do enum não muda o texto no banco,
@@ -43,9 +51,12 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
         builder.OwnsMany(exercise => exercise.Alternatives, alternative =>
         {
             alternative.ToTable("alternative", table =>
+            {
                 table.HasCheckConstraint(
                     "ck_alternative_error_type",
-                    "(is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL)"));
+                    "(is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL)");
+                table.HasCheckConstraint("ck_alternative_position", "position >= 1");
+            });
 
             alternative.WithOwner().HasForeignKey("ExerciseId");
             alternative.Property<Guid>("ExerciseId").HasColumnName("exercise_id");
@@ -57,6 +68,9 @@ internal sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
             alternative.Property(value => value.Id).HasColumnName("id").ValueGeneratedNever();
 
             alternative.Property(value => value.Text).HasColumnName("text").IsRequired();
+
+            // A ordem das alternativas no exercício, escolhida pelo autor do conteúdo (veja Exercise.Position).
+            alternative.Property(value => value.Position).HasColumnName("position");
             alternative.Property(value => value.IsCorrect).HasColumnName("is_correct");
 
             alternative.Property(value => value.ErrorTypeId).HasColumnName("error_type_id");

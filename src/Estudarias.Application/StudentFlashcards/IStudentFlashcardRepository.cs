@@ -16,4 +16,10 @@ public interface IStudentFlashcardRepository
 
     /// <summary>Marca o cartão para ser gravado; só vale depois de <c>IUnitOfWork.SaveChangesAsync</c>.</summary>
     void Add(StudentFlashcard card);
+
+    /// <summary>
+    /// Tira da gravação um cartão que foi marcado com <see cref="Add"/> e ainda não foi gravado. Serve à corrida em que outra requisição
+    /// cria o mesmo cartão antes: a perdedora descarta o dela e grava o resto, sem perder a tentativa (FA-RSP-10).
+    /// </summary>
+    void Discard(StudentFlashcard card);
 }

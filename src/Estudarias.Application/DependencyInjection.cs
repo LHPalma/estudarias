@@ -1,5 +1,11 @@
+using Estudarias.Application.Attempts;
 using Estudarias.Application.Identity;
+using Estudarias.Application.Reviews;
+using Estudarias.Application.Reviews.Queries;
 using Estudarias.Application.Students.Queries;
+using Estudarias.Application.Trail;
+using Estudarias.Application.Trail.Queries;
+using Estudarias.Domain.StudentFlashcards.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -12,13 +18,27 @@ public static class DependencyInjection
         // Os casos de uso recebem o relógio por TimeProvider, então os testes controlam o tempo.
         services.TryAddSingleton(TimeProvider.System);
 
+        // O algoritmo que agenda os cartões novos: um adapter por algoritmo, escolhido aqui (ADR-003). O cartão fica preso ao que o criou.
+        services.TryAddSingleton<IReviewScheduler, Sm2Scheduler>();
+
         services.AddScoped<RegisterStudentHandler>();
         services.AddScoped<LoginHandler>();
         services.AddScoped<RefreshSessionHandler>();
         services.AddScoped<LogoutHandler>();
+        services.AddScoped<UnlockInitialTopicsHandler>();
+        services.AddScoped<SubmitAttemptHandler>();
+        services.AddScoped<ReviewFlashcardHandler>();
+        services.AddSingleton<IReviewSchedulers, ReviewSchedulers>();
 
         // As leituras não passam por caso de uso: a API chama a porta de leitura direto.
         services.AddScoped<IProfileReads, ProfileReads>();
+        services.AddScoped<ITrailReads, TrailReads>();
+        services.AddScoped<ITopicReads, TopicReads>();
+        services.AddScoped<ILessonReads, LessonReads>();
+        services.AddScoped<ITopicAttemptsReads, TopicAttemptsReads>();
+        services.AddScoped<IAnswerReads, AnswerReads>();
+        services.AddScoped<ILessonProgressReads, LessonProgressReads>();
+        services.AddScoped<IReviewReads, ReviewReads>();
 
         return services;
     }

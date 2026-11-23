@@ -138,10 +138,13 @@ internal sealed class ContentLoader(AppDbContext db) : IContentLoader
                 continue;
             }
 
-            foreach (var exercise in document.Exercises)
+            // A ordem do arquivo é a ordem da lição: a posição do exercício é o lugar dele na lista.
+            for (var index = 0; index < document.Exercises.Count; index++)
             {
+                var exercise = document.Exercises[index];
+                var position = index + 1;
                 Apply(file, $"exercício '{exercise.Code}'", problems, () =>
-                    touched.Add(UpsertExercise(exercise, lesson.Id, topicExercises, errorTypeIds)));
+                    touched.Add(UpsertExercise(exercise, lesson.Id, position, topicExercises, errorTypeIds)));
             }
         }
 
@@ -171,7 +174,11 @@ internal sealed class ContentLoader(AppDbContext db) : IContentLoader
     }
 
     private Exercise UpsertExercise(
-        ExerciseDocument document, Guid lessonId, List<Exercise> topicExercises, Dictionary<string, Guid> errorTypeIds)
+        ExerciseDocument document,
+        Guid lessonId,
+        int position,
+        List<Exercise> topicExercises,
+        Dictionary<string, Guid> errorTypeIds)
     {
         var difficulty = ContentValidator.ParseDifficulty(document.Difficulty)!.Value;
         List<Alternative> alternatives =
@@ -184,12 +191,12 @@ internal sealed class ContentLoader(AppDbContext db) : IContentLoader
         var exercise = topicExercises.FirstOrDefault(stored => stored.Code == document.Code);
         if (exercise is null)
         {
-            exercise = Exercise.Create(lessonId, document.Code, document.Statement, difficulty, alternatives);
+            exercise = Exercise.Create(lessonId, position, document.Code, document.Statement, difficulty, alternatives);
             db.Exercises.Add(exercise);
         }
         else
         {
-            exercise.Revise(lessonId, document.Statement, difficulty, alternatives);
+            exercise.Revise(lessonId, position, document.Statement, difficulty, alternatives);
         }
 
         return exercise;

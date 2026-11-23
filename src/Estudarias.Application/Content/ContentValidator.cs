@@ -222,7 +222,7 @@ public static class ContentValidator
         {
             try
             {
-                Exercise.Create(lessonId, exercise.Code!, exercise.Statement, difficulty.Value, alternatives);
+                Exercise.Create(lessonId, 1, exercise.Code!, exercise.Statement, difficulty.Value, alternatives);
             }
             catch (DomainValidationException exception)
             {
