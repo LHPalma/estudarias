@@ -1,4 +1,4 @@
-# Operações básicas: a raiz da trilha (sem pré-requisito). Curto de propósito: existe para a trilha ter por onde começar.
+# Operações básicas: a raiz da trilha (sem pré-requisito), com soma, subtração, multiplicação e divisão.
 # Formato e regras: docs/SRS/SRS - Módulo de Conteúdo.md (RF-CNT-06 e RF-CNT-07). Os códigos são a chave natural de cada item:
 # mudar um código cria um item novo, e o antigo continua no banco.
 
@@ -19,6 +19,30 @@ errorTypes:
     name: Troca a operação
     description: Subtrai quando era para somar, ou soma quando era para subtrair.
     feedback: Confira o sinal antes de começar a conta.
+  - code: confunde_multiplicar_com_somar
+    name: Soma em vez de multiplicar
+    description: Soma os dois números quando a conta é uma multiplicação.
+    feedback: Multiplicar é somar o mesmo número várias vezes. 6 × 4 é quatro vezes o 6 (ou seis vezes o 4), e não 6 + 4.
+  - code: erra_a_tabuada
+    name: Erra a tabuada
+    description: Responde um resultado vizinho, como 54 para 7 × 8, por não lembrar o valor da tabuada.
+    feedback: Se a tabuada falhar, parta de um resultado que você sabe e some ou subtraia. 7 × 7 = 49, e 49 + 7 = 56.
+  - code: esquece_de_deslocar_a_casa
+    name: Esquece de deslocar a casa
+    description: Na multiplicação por um número de dois algarismos, soma os resultados sem deslocar o segundo uma casa para a esquerda.
+    feedback: O algarismo das dezenas vale dez vezes mais. Desloque o segundo resultado uma casa para a esquerda (ou multiplique por 10) antes de somar.
+  - code: confunde_dividir_com_multiplicar
+    name: Multiplica em vez de dividir
+    description: Multiplica os dois números quando a conta é uma divisão.
+    feedback: Dividir é repartir em partes iguais, e o resultado é menor que o número que se divide. Confira multiplicando o resultado pelo divisor.
+  - code: confunde_dividir_com_subtrair
+    name: Subtrai em vez de dividir
+    description: Subtrai o divisor do número quando a conta é uma divisão.
+    feedback: Dividir não é tirar um número do outro. É repartir em partes iguais. Confira multiplicando o resultado pelo divisor.
+  - code: inverte_a_divisao
+    name: Inverte os números da divisão
+    description: Divide o divisor pelo número que se divide, e não o contrário.
+    feedback: O número que se divide vem primeiro. Em 48 ÷ 6, repartimos 48 em 6 partes iguais, e não 6 em 48 partes.
 
 lessons:
   - order: 1
@@ -47,6 +71,105 @@ lessons:
             errorType: esquece_o_emprestimo
           - text: "69"
             errorType: troca_a_operacao
+      - code: soma_com_dois_vai_um
+        statement: Quanto é 138 + 67?
+        difficulty: medium
+        alternatives:
+          - text: "205"
+            correct: true
+          - text: "195"
+            errorType: esquece_o_vai_um
+          - text: "71"
+            errorType: troca_a_operacao
+      - code: subtracao_com_zero_no_meio
+        statement: Quanto é 403 − 158?
+        difficulty: medium
+        alternatives:
+          - text: "245"
+            correct: true
+          - text: "355"
+            errorType: esquece_o_emprestimo
+          - text: "561"
+            errorType: troca_a_operacao
+
+  - order: 2
+    title: Multiplicação
+    content: |
+      Multiplicar é somar o mesmo número várias vezes: 4 × 3 = 3 + 3 + 3 + 3 = 12.
+      Para multiplicar por um número de dois algarismos, multiplique pelas unidades e depois pelas dezenas, deslocando o segundo resultado uma casa para a esquerda, e some os dois.
+      23 × 12 → 23 × 2 = 46 e 23 × 10 = 230 → 46 + 230 = 276
+    exercises:
+      - code: seis_vezes_quatro
+        statement: Quanto é 6 × 4?
+        difficulty: easy
+        alternatives:
+          - text: "24"
+            correct: true
+          - text: "10"
+            errorType: confunde_multiplicar_com_somar
+          - text: "20"
+            errorType: erra_a_tabuada
+      - code: sete_vezes_oito
+        statement: Quanto é 7 × 8?
+        difficulty: easy
+        alternatives:
+          - text: "56"
+            correct: true
+          - text: "15"
+            errorType: confunde_multiplicar_com_somar
+          - text: "54"
+            errorType: erra_a_tabuada
+      - code: vinte_e_tres_vezes_doze
+        statement: Quanto é 23 × 12?
+        difficulty: medium
+        alternatives:
+          - text: "276"
+            correct: true
+          - text: "69"
+            errorType: esquece_de_deslocar_a_casa
+          - text: "35"
+            errorType: confunde_multiplicar_com_somar
+
+  - order: 3
+    title: Divisão
+    content: |
+      Dividir é repartir em partes iguais: 20 ÷ 5 = 4, porque 5 × 4 = 20. A divisão se confere com a multiplicação.
+      O número que se divide vem primeiro, e o que divide vem depois. Em 17 ÷ 5, o 5 cabe 3 vezes e sobram 2: 17 = 5 × 3 + 2.
+    exercises:
+      - code: vinte_dividido_por_cinco
+        statement: Quanto é 20 ÷ 5?
+        difficulty: easy
+        alternatives:
+          - text: "4"
+            correct: true
+          - text: "100"
+            errorType: confunde_dividir_com_multiplicar
+          - text: "{1/4}"
+            errorType: inverte_a_divisao
+      - code: quarenta_e_oito_dividido_por_seis
+        statement: Quanto é 48 ÷ 6?
+        difficulty: medium
+        alternatives:
+          - text: "8"
+            correct: true
+          - text: "288"
+            errorType: confunde_dividir_com_multiplicar
+          - text: "7"
+            errorType: erra_a_tabuada
+          - text: "{1/8}"
+            errorType: inverte_a_divisao
+      - code: lapis_para_sete_criancas
+        statement: Uma caixa tem 84 lápis para repartir igualmente entre 7 crianças. Quantos lápis cada criança recebe?
+        difficulty: hard
+        alternatives:
+          - text: "12"
+            correct: true
+          - text: "588"
+            errorType: confunde_dividir_com_multiplicar
+          - text: "77"
+            errorType: confunde_dividir_com_subtrair
+          - text: "{1/12}"
+            errorType: inverte_a_divisao
 
 flashcards:
   - code: por_que_vai_um
@@ -61,3 +184,33 @@ flashcards:
     errorType: troca_a_operacao
     question: Por que conferir o sinal antes de fazer a conta?
     answer: Porque 27 + 15 e 27 − 15 dão 42 e 12. O sinal decide a operação, e a resposta muda inteira.
+  - code: multiplicar_nao_e_somar
+    errorType: confunde_multiplicar_com_somar
+    question: Por que 6 × 4 não é 10?
+    answer: Porque 10 é 6 + 4. Multiplicar é somar o mesmo número várias vezes. 6 × 4 é seis vezes o 4, 4 + 4 + 4 + 4 + 4 + 4 = 24.
+  - code: por_que_revisar_a_tabuada
+    errorType: erra_a_tabuada
+    question: Como conferir se 7 × 8 é 56 e não 54?
+    answer: Parta de um resultado que você sabe. 7 × 7 = 49, e 49 + 7 = 56. Ou some o 7 oito vezes.
+  - code: por_que_deslocar_a_casa
+    errorType: esquece_de_deslocar_a_casa
+    question: Por que 23 × 12 não é 69?
+    answer: Porque 69 é 46 + 23, e o 1 de 12 vale 10, e não 1. Multiplique 23 por 10 (230), some com 23 × 2 = 46, e o resultado é 276.
+  - code: dividir_nao_e_multiplicar
+    errorType: confunde_dividir_com_multiplicar
+    question: Por que 20 ÷ 5 não é 100?
+    answer: Porque dividir é repartir em partes iguais, e não aumentar. 20 ÷ 5 = 4, e para conferir, 5 × 4 = 20.
+  - code: dividir_nao_e_subtrair
+    errorType: confunde_dividir_com_subtrair
+    question: Por que 84 ÷ 7 não é 77?
+    answer: Porque 77 é 84 − 7. Dividir é repartir. 84 lápis para 7 crianças dão 12 para cada uma, e 7 × 12 = 84.
+  - code: quem_divide_vai_depois
+    errorType: inverte_a_divisao
+    question: Em 48 ÷ 6, por que a resposta não é {1/8}?
+    answer: Porque o número que se divide vem primeiro. 48 ÷ 6 = 8. {1/8} seria 6 ÷ 48, a conta ao contrário.
+  - code: o_que_e_multiplicar
+    question: O que é multiplicar?
+    answer: É somar o mesmo número várias vezes. 4 × 3 = 3 + 3 + 3 + 3 = 12.
+  - code: como_conferir_uma_divisao
+    question: Como conferir o resultado de uma divisão?
+    answer: Multiplique o resultado pelo divisor. Se voltar ao número que você dividiu, está certo. 20 ÷ 5 = 4, e 5 × 4 = 20.
