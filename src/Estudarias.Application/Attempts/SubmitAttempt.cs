@@ -12,6 +12,7 @@ using Estudarias.Domain.Answers;
 using Estudarias.Domain.Attempts;
 using Estudarias.Domain.ErrorTypes;
 using Estudarias.Domain.Identity;
+using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Mastery;
 using Estudarias.Domain.Scoring;
 using Estudarias.Domain.StudentFlashcards;
@@ -29,6 +30,12 @@ public sealed record SubmitAttemptCommand(Guid ExerciseId, Guid AlternativeId, i
 /// <param name="Score">Com uma casa, arredondada para baixo (<c>TopicScore.Display</c>).</param>
 public sealed record AttemptTopicResult(Guid Id, TopicStatus Status, decimal Score, int AttemptCount);
 
+/// <summary>
+/// A lição do exercício depois da resposta, já com ela: o estado e quantos exercícios o aluno acertou, de quantos. É o que a tela de fim
+/// de lição usa para mostrar "Lição concluída" só quando for verdade (RN-TRL-12).
+/// </summary>
+public sealed record AttemptLessonResult(Guid Id, LessonStatus Status, int CompletedExercises, int TotalExercises);
+
 /// <summary>Um tópico liberado por esta resposta, para o aviso de desbloqueio.</summary>
 public sealed record UnlockedTopicResult(Guid Id, string Name);
 
@@ -42,6 +49,7 @@ public sealed record SubmitAttemptResult(
     Guid CorrectAlternativeId,
     AnswerFeedback Feedback,
     AttemptTopicResult Topic,
+    AttemptLessonResult Lesson,
     IReadOnlyList<UnlockedTopicResult> UnlockedTopics,
     CreatedFlashcardResult? Flashcard);
 
@@ -61,6 +69,7 @@ public sealed class SubmitAttemptHandler(
     IStudentFlashcardRepository studentFlashcards,
     IAttemptRepository attempts,
     IAnswerReads answers,
+    ILessonProgressReads lessonProgress,
     IReviewScheduler scheduler,
     IUnitOfWork unitOfWork,
     TimeProvider clock)
@@ -108,6 +117,14 @@ public sealed class SubmitAttemptHandler(
         var attemptCount = previous.Total + 1;
         var score = TopicScore.Compute(window);
 
+        // O estado da lição também considera esta resposta, que ainda não está no banco: o exercício entra entre os tentados e, se
+        // acertou, entre os acertados. Errar um exercício já acertado não desfaz a conclusão (RN-TRL-13).
+        var lessonBefore = await lessonProgress.OfLessonAsync(student.Id, exercise.LessonId, cancellationToken);
+        var lessonNow = LessonProgress.Of(
+            lessonBefore.ExerciseIds,
+            [.. lessonBefore.Attempted, exercise.Id],
+            diagnosis.IsCorrect ? [.. lessonBefore.Correct, exercise.Id] : lessonBefore.Correct);
+
         var allTopics = await topics.ListAsync(cancellationToken);
         var unlocked = TopicMastery.Evaluate(student, topicId, score, attemptCount, allTopics, clock);
 
@@ -142,6 +159,7 @@ public sealed class SubmitAttemptHandler(
             diagnosis.CorrectAlternativeId,
             feedback,
             new AttemptTopicResult(topicId, student.StatusOf(topicId), score.Display, attemptCount),
+            new AttemptLessonResult(exercise.LessonId, lessonNow.Status, lessonNow.CompletedExercises, lessonNow.TotalExercises),
             [.. unlocked.Select(id => new UnlockedTopicResult(id, allTopics.Single(topic => topic.Id == id).Name))],
             card is null ? null : new CreatedFlashcardResult(card.Id, card.NextReviewAt));
     }

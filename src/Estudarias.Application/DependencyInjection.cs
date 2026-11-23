@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ITopicReads, TopicReads>();
         services.AddScoped<ILessonReads, LessonReads>();
         services.AddScoped<IAnswerReads, AnswerReads>();
+        services.AddScoped<ILessonProgressReads, LessonProgressReads>();
         services.AddScoped<IReviewReads, ReviewReads>();
 
         return services;
