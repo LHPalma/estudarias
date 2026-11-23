@@ -73,7 +73,7 @@ public class TrailEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
             trail.EnumerateObject().Select(property => property.Name).Order());
         var topic = trail.GetProperty("topics")[0];
         Assert.Equal(
-            ["id", "links", "name", "prerequisites", "score", "slug", "status"],
+            ["completedLessons", "id", "links", "name", "prerequisites", "score", "slug", "status", "totalLessons"],
             topic.EnumerateObject().Select(property => property.Name).Order());
         Assert.Contains(topic.GetProperty("status").GetString(), new[] { "locked", "available", "mastered" });
     }
@@ -130,6 +130,25 @@ public class TrailEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
         Assert.Equal(["self", "reviews"], trail.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
         Assert.Equal("http://localhost/reviews/due", RelOf(trail, "reviews"));
         Assert.Equal(HttpStatusCode.OK, reviews.StatusCode);
+    }
+
+    [Fact(DisplayName = "Um aluno novo vê 0 lições concluídas em cada tópico, de todas as lições dele")]
+    public async Task Trail_ForANewStudent_HasNoCompletedLessons()
+    {
+        // Arrange
+        await LoadContentAsync();
+        var session = await RegisterAsync();
+
+        // Act
+        var trail = await TrailAsync(session);
+
+        // Assert
+        foreach (var topic in trail.GetProperty("topics").EnumerateArray())
+        {
+            Assert.Equal(0, topic.GetProperty("completedLessons").GetInt32());
+            var lessonsInDatabase = await CountAsync("lesson", $"topic_id = '{topic.GetProperty("id").GetGuid()}'");
+            Assert.Equal(lessonsInDatabase, topic.GetProperty("totalLessons").GetInt32());
+        }
     }
 
     [Fact(DisplayName = "O link trail do perfil leva à trilha")]

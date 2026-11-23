@@ -79,11 +79,12 @@ public class AttemptEndpointTests(PostgresFixture postgres) : ContentEndpointsTe
 
         // Assert
         Assert.Equal(
-            ["attemptId", "correctAlternativeId", "feedback", "flashcard", "isCorrect", "links", "topic", "unlockedTopics"],
+            ["attemptId", "correctAlternativeId", "feedback", "flashcard", "isCorrect", "lesson", "links", "topic", "unlockedTopics"],
             result.EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["correctAnswer", "errorType", "kind"], result.GetProperty("feedback").EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["feedback", "name"], result.GetProperty("feedback").GetProperty("errorType").EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["attemptCount", "id", "score", "status"], result.GetProperty("topic").EnumerateObject().Select(property => property.Name).Order());
+        Assert.Equal(["completedExercises", "id", "status", "totalExercises"], result.GetProperty("lesson").EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal(["id", "nextReviewAt"], result.GetProperty("flashcard").EnumerateObject().Select(property => property.Name).Order());
     }
 
@@ -219,6 +220,41 @@ public class AttemptEndpointTests(PostgresFixture postgres) : ContentEndpointsTe
         Assert.Equal(1, after.GetProperty("masteredTopics").GetInt32());
         Assert.Equal(1, await CountAsync("student_flashcard"));
         Assert.Equal(0, after.GetProperty("dueReviews").GetInt32());
+    }
+
+    [Fact(DisplayName = "A resposta traz o estado da lição já com ela: errar deixa em andamento, e acertar tudo conclui")]
+    public async Task Attempt_ReturnsTheLessonStateWithTheNewAnswer()
+    {
+        // Arrange
+        var (session, _, exerciseId) = await StudentWithAnExerciseAsync();
+        var lessonId = await ScalarAsync<Guid>($"SELECT lesson_id FROM exercise WHERE id = '{exerciseId}'");
+        var total = (int)await CountAsync("exercise", $"lesson_id = '{lessonId}'");
+
+        // Act
+        var afterWrong = await AnswerOkAsync(session, exerciseId, correct: false);
+        JsonElement last = afterWrong;
+        var siblings = new List<Guid>();
+        await using (var connection = new Npgsql.NpgsqlConnection(ConnectionString))
+        {
+            await connection.OpenAsync(Cancel);
+            await using var command = new Npgsql.NpgsqlCommand($"SELECT id FROM exercise WHERE lesson_id = '{lessonId}' ORDER BY position", connection);
+            await using var reader = await command.ExecuteReaderAsync(Cancel);
+            while (await reader.ReadAsync(Cancel))
+            {
+                siblings.Add(reader.GetGuid(0));
+            }
+        }
+
+        foreach (var sibling in siblings)
+        {
+            last = await AnswerOkAsync(session, sibling, correct: true);
+        }
+
+        // Assert
+        var wrongLesson = afterWrong.GetProperty("lesson");
+        Assert.Equal((lessonId, "inProgress", 0, total), (wrongLesson.GetProperty("id").GetGuid(), wrongLesson.GetProperty("status").GetString(), wrongLesson.GetProperty("completedExercises").GetInt32(), wrongLesson.GetProperty("totalExercises").GetInt32()));
+        var doneLesson = last.GetProperty("lesson");
+        Assert.Equal(("completed", total, total), (doneLesson.GetProperty("status").GetString(), doneLesson.GetProperty("completedExercises").GetInt32(), doneLesson.GetProperty("totalExercises").GetInt32()));
     }
 
     [Fact(DisplayName = "A resposta traz os links topic e reviews, e o topic leva ao tópico com a nota nova")]

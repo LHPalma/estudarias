@@ -46,7 +46,7 @@ public class TopicEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
         Assert.Equal("Frações", unlocked.GetProperty("name").GetString());
     }
 
-    [Fact(DisplayName = "O tópico tem só os campos do contrato, e cada lição só id, ordem, título e links")]
+    [Fact(DisplayName = "O tópico tem só os campos do contrato, e cada lição só id, ordem, título, estado, exercícios acertados e totais, e links")]
     public async Task Topic_ReturnsOnlyTheContractFields()
     {
         // Arrange
@@ -61,7 +61,9 @@ public class TopicEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
             ["attemptCount", "id", "lessons", "links", "masteryThreshold", "minAttempts", "name", "prerequisites", "score", "slug", "status", "unlocks"],
             topic.EnumerateObject().Select(property => property.Name).Order());
         var lesson = topic.GetProperty("lessons")[0];
-        Assert.Equal(["id", "links", "order", "title"], lesson.EnumerateObject().Select(property => property.Name).Order());
+        Assert.Equal(
+            ["completedExercises", "id", "links", "order", "status", "title", "totalExercises"],
+            lesson.EnumerateObject().Select(property => property.Name).Order());
     }
 
     [Fact(DisplayName = "O tópico bloqueado abre (200), mostra o que falta e traz as lições sem o link lesson")]
@@ -101,6 +103,74 @@ public class TopicEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
             Assert.Equal($"http://localhost/lessons/{lesson.GetProperty("id").GetGuid()}", link.GetProperty("href").GetString());
             Assert.Equal(HttpStatusCode.OK, (await GetWithTokenAsync(link.GetProperty("href").GetString()!, AccessTokenOf(session))).StatusCode);
         }
+    }
+
+    [Fact(DisplayName = "Sem tentativas, cada lição não foi iniciada, com 0 exercícios acertados dos que ela tem")]
+    public async Task Topic_WithoutAttempts_EveryLessonIsNotStarted()
+    {
+        // Arrange
+        await LoadContentAsync();
+        var (session, trail) = await NewStudentAsync();
+
+        // Act
+        var topic = await TopicAsync(session, trail, "operacoes-basicas");
+
+        // Assert
+        foreach (var lesson in topic.GetProperty("lessons").EnumerateArray())
+        {
+            Assert.Equal("notStarted", lesson.GetProperty("status").GetString());
+            Assert.Equal(0, lesson.GetProperty("completedExercises").GetInt32());
+            var exercises = await CountAsync("exercise", $"lesson_id = '{lesson.GetProperty("id").GetGuid()}'");
+            Assert.Equal(exercises, lesson.GetProperty("totalExercises").GetInt32());
+        }
+    }
+
+    [Fact(DisplayName = "Responder muda o estado da lição: em andamento, e concluída quando todos os exercícios foram acertados; a trilha acompanha")]
+    public async Task Topic_AfterAnswering_ShowsTheLessonStateAndTheTrailCounts()
+    {
+        // Arrange
+        await LoadContentAsync();
+        var (session, trail) = await NewStudentAsync();
+        var topicBefore = await TopicAsync(session, trail, "operacoes-basicas");
+        var lessonId = topicBefore.GetProperty("lessons")[0].GetProperty("id").GetGuid();
+        var exerciseIds = new List<Guid>();
+        await using (var connection = new Npgsql.NpgsqlConnection(ConnectionString))
+        {
+            await connection.OpenAsync(Cancel);
+            await using var command = new Npgsql.NpgsqlCommand($"SELECT id FROM exercise WHERE lesson_id = '{lessonId}' ORDER BY position", connection);
+            await using var reader = await command.ExecuteReaderAsync(Cancel);
+            while (await reader.ReadAsync(Cancel))
+            {
+                exerciseIds.Add(reader.GetGuid(0));
+            }
+        }
+
+        async Task AnswerAsync(Guid exerciseId, bool correct)
+        {
+            var alternative = await ScalarAsync<Guid>($"SELECT id FROM alternative WHERE exercise_id = '{exerciseId}' AND is_correct = {(correct ? "true" : "false")} ORDER BY position LIMIT 1");
+            var response = await PostWithTokenAsync($"/exercises/{exerciseId}/attempts", new { alternativeId = alternative }, AccessTokenOf(session));
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+
+        async Task<JsonElement> LessonAsync() =>
+            (await TopicAsync(session, trail, "operacoes-basicas")).GetProperty("lessons").EnumerateArray()
+                .Single(lesson => lesson.GetProperty("id").GetGuid() == lessonId);
+
+        // Act & Assert: errar o primeiro deixa a lição em andamento, 0 acertados
+        await AnswerAsync(exerciseIds[0], correct: false);
+        var afterWrong = await LessonAsync();
+        Assert.Equal(("inProgress", 0), (afterWrong.GetProperty("status").GetString(), afterWrong.GetProperty("completedExercises").GetInt32()));
+
+        // Acertar todos conclui a lição
+        foreach (var exerciseId in exerciseIds)
+        {
+            await AnswerAsync(exerciseId, correct: true);
+        }
+
+        var done = await LessonAsync();
+        Assert.Equal(("completed", exerciseIds.Count, exerciseIds.Count), (done.GetProperty("status").GetString(), done.GetProperty("completedExercises").GetInt32(), done.GetProperty("totalExercises").GetInt32()));
+        var after = await TrailAsync(session);
+        Assert.Equal(1, TopicOf(after, "operacoes-basicas").GetProperty("completedLessons").GetInt32());
     }
 
     [Fact(DisplayName = "As lições vêm por ordem, a partir de 1")]
