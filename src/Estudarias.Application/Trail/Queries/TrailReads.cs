@@ -1,4 +1,5 @@
 using Estudarias.Application.Common;
+using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Mastery;
 using Estudarias.Domain.Scoring;
 using Estudarias.Domain.Students;
@@ -36,6 +37,10 @@ public sealed class TrailReads(IApplicationDbContext db, TimeProvider clock) : I
         // A nota de cada tópico vem das últimas respostas do aluno nele (a janela do TopicScore).
         var answers = await StudentReads.LatestAnswersByTopicAsync(db, id, cancellationToken);
 
+        // As lições concluídas e as totais de cada tópico, do estado derivado das tentativas (RN-TRL-13).
+        var lessonsByTopic = (await StudentReads.LessonProgressAsync(db, id, topicId: null, cancellationToken))
+            .ToLookup(row => row.TopicId);
+
         var now = clock.GetUtcNow();
         var dueReviews = await db.StudentFlashcards
             .CountAsync(card => card.StudentId == id && card.NextReviewAt <= now, cancellationToken);
@@ -48,7 +53,9 @@ public sealed class TrailReads(IApplicationDbContext db, TimeProvider clock) : I
                 topic.Name,
                 StudentReads.StatusOf(statuses, topic.Id),
                 answers.TryGetValue(topic.Id, out var graded) ? TopicScore.Compute(graded).Display : null,
-                topic.Prerequisites))
+                topic.Prerequisites,
+                lessonsByTopic[topic.Id].Count(row => row.Progress.Status == LessonStatus.Completed),
+                lessonsByTopic[topic.Id].Count()))
             .ToList();
 
         return new TrailView(

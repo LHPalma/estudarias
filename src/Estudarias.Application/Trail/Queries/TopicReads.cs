@@ -36,11 +36,24 @@ public sealed class TopicReads(IApplicationDbContext db) : ITopicReads
         var (latest, attemptCount) = await new AnswerReads(db).OfTopicAsync(studentId, topicId, cancellationToken);
 
         // Sem o conteúdo (que pode ser longo): o tópico só lista as lições, e o texto sai na leitura da lição.
-        var lessons = await db.Lessons
+        var lessonRows = await db.Lessons
             .Where(lesson => lesson.TopicId == topicId)
             .OrderBy(lesson => lesson.Order)
-            .Select(lesson => new TopicLessonView(lesson.Id, lesson.Order, lesson.Title))
+            .Select(lesson => new { lesson.Id, lesson.Order, lesson.Title })
             .ToListAsync(cancellationToken);
+
+        // O estado de cada lição para o aluno, derivado das tentativas dele (RN-TRL-13).
+        var progress = (await StudentReads.LessonProgressAsync(db, studentId, topicId, cancellationToken))
+            .ToDictionary(row => row.LessonId, row => row.Progress);
+        var lessons = lessonRows
+            .Select(lesson => new TopicLessonView(
+                lesson.Id,
+                lesson.Order,
+                lesson.Title,
+                progress[lesson.Id].Status,
+                progress[lesson.Id].CompletedExercises,
+                progress[lesson.Id].TotalExercises))
+            .ToList();
 
         var namesById = topics.ToDictionary(candidate => candidate.Id, candidate => candidate.Name);
 

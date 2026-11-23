@@ -17,10 +17,14 @@ public sealed record TrailView(
 /// De 0 a 100, com uma casa, arredondada para baixo (<c>TopicScore.Display</c>); nula enquanto o aluno não respondeu nada no tópico.
 /// </param>
 /// <param name="Prerequisites">Os ids dos tópicos exigidos, para o mapa desenhar o grafo.</param>
+/// <param name="CompletedLessons">As lições do tópico que o aluno concluiu (acertou cada exercício pelo menos uma vez).</param>
+/// <param name="TotalLessons">As lições do tópico. Concluir as lições não é dominar o tópico: quem libera a trilha é a nota.</param>
 public sealed record TrailTopicView(
     Guid Id,
     string Slug,
     string Name,
     TopicStatus Status,
     decimal? Score,
-    IReadOnlyList<Guid> Prerequisites);
+    IReadOnlyList<Guid> Prerequisites,
+    int CompletedLessons,
+    int TotalLessons);

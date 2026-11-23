@@ -1,3 +1,4 @@
+using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Students;
 
 namespace Estudarias.Application.Trail.Queries;
@@ -30,5 +31,9 @@ public sealed record TopicPrerequisiteView(Guid Id, string Name, TopicStatus Sta
 /// <summary>Um tópico citado por outro: só o id e o nome.</summary>
 public sealed record TopicRefView(Guid Id, string Name);
 
-/// <summary>Uma lição do tópico, sem o conteúdo: este só sai na leitura da lição.</summary>
-public sealed record TopicLessonView(Guid Id, int Order, string Title);
+/// <summary>
+/// Uma lição do tópico, sem o conteúdo (que só sai na leitura da lição), com o estado dela para o aluno: quantos exercícios ele já
+/// acertou, de quantos.
+/// </summary>
+public sealed record TopicLessonView(
+    Guid Id, int Order, string Title, LessonStatus Status, int CompletedExercises, int TotalExercises);
