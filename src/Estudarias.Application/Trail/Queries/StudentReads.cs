@@ -1,4 +1,5 @@
 using Estudarias.Application.Common;
+using Estudarias.Domain.Attempts;
 using Estudarias.Domain.Exercises;
 using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Scoring;
@@ -42,34 +43,52 @@ internal static class StudentReads
         statuses.TryGetValue(topicId, out var status) ? status : TopicStatus.Locked;
 
     /// <summary>
-    /// As respostas do aluno (de um tópico só, quando <paramref name="topicId"/> vem), da mais recente para a mais antiga, com o
-    /// desempate pelo id (v7, que cresce com o tempo) para duas respostas no mesmo instante saírem sempre na mesma ordem. Só as colunas
-    /// que a nota usa; o tópico de um exercício é o da lição dele.
+    /// Uma tentativa com o exercício e a lição dela. É uma classe com inicializador, e não um registro com construtor: o EF Core traduz a
+    /// projeção de entidades em membros, e não em argumentos de construtor.
     /// </summary>
-    internal static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId, Guid? topicId = null)
+    internal sealed class AnswerSource
+    {
+        public required Attempt Attempt { get; init; }
+
+        public required Exercise Exercise { get; init; }
+
+        public required Lesson Lesson { get; init; }
+    }
+
+    /// <summary>
+    /// As respostas do aluno (de um tópico só, quando <paramref name="topicId"/> vem), da mais recente para a mais antiga, com o
+    /// desempate pelo id (v7, que cresce com o tempo) para duas respostas no mesmo instante saírem sempre na mesma ordem. O tópico de um
+    /// exercício é o da lição dele. <b>É a única ordenação das respostas</b>: a nota e o histórico do tópico partem daqui, para o que o
+    /// aluno vê explicar a nota que ele tem (RN-TRL-17).
+    /// </summary>
+    internal static IQueryable<AnswerSource> OrderedSources(IApplicationDbContext db, Guid studentId, Guid? topicId = null)
     {
         var sources =
             from attempt in db.Attempts
             join exercise in db.Exercises on attempt.ExerciseId equals exercise.Id
             join lesson in db.Lessons on exercise.LessonId equals lesson.Id
             where attempt.StudentId == studentId
-            select new { attempt, exercise, lesson };
+            select new AnswerSource { Attempt = attempt, Exercise = exercise, Lesson = lesson };
 
-        // O filtro entra antes da projeção: o EF Core não traduz um Where sobre o resultado já projetado num tipo nosso.
+        // O filtro entra antes da projeção das colunas: o EF Core não traduz um Where sobre o resultado já projetado num tipo nosso.
         if (topicId is { } id)
         {
-            sources = sources.Where(source => source.lesson.TopicId == id);
+            sources = sources.Where(source => source.Lesson.TopicId == id);
         }
 
         return sources
-            .OrderByDescending(source => source.attempt.AnsweredAt)
-            .ThenByDescending(source => source.attempt.Id)
-            .Select(source => new AnswerRow(
-                source.lesson.TopicId,
-                source.exercise.Difficulty,
-                source.exercise.Alternatives.Any(
-                    alternative => alternative.Id == source.attempt.AlternativeId && alternative.IsCorrect)));
+            .OrderByDescending(source => source.Attempt.AnsweredAt)
+            .ThenByDescending(source => source.Attempt.Id);
     }
+
+    /// <summary>As respostas, só com as colunas que a nota usa.</summary>
+    internal static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId, Guid? topicId = null) =>
+        OrderedSources(db, studentId, topicId)
+            .Select(source => new AnswerRow(
+                source.Lesson.TopicId,
+                source.Exercise.Difficulty,
+                source.Exercise.Alternatives.Any(
+                    alternative => alternative.Id == source.Attempt.AlternativeId && alternative.IsCorrect)));
 
     /// <summary>Para cada tópico com respostas, as da janela da nota (as mais recentes), da mais recente para a mais antiga.</summary>
     public static async Task<Dictionary<Guid, IReadOnlyList<GradedAnswer>>> LatestAnswersByTopicAsync(
