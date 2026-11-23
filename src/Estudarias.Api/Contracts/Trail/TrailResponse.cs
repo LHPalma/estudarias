@@ -5,7 +5,8 @@ namespace Estudarias.Api.Contracts.Trail;
 
 /// <summary>
 /// Um tópico da trilha. <c>Status</c> é <c>locked</c>, <c>available</c> ou <c>mastered</c> (texto em minúsculas, como o contrato);
-/// <c>Score</c> é nulo enquanto o aluno não respondeu nada no tópico.
+/// <c>Score</c> é nulo enquanto o aluno não respondeu nada no tópico. <c>CompletedLessons</c> e <c>TotalLessons</c> dizem quantas lições
+/// o aluno concluiu, de quantas (concluir as lições não domina o tópico: quem libera a trilha é a nota).
 /// </summary>
 public sealed record TrailTopicResponse(
     Guid Id,
@@ -14,10 +15,21 @@ public sealed record TrailTopicResponse(
     string Status,
     decimal? Score,
     IReadOnlyList<Guid> Prerequisites,
+    int CompletedLessons,
+    int TotalLessons,
     IReadOnlyList<Link> Links)
 {
     public static TrailTopicResponse From(TrailTopicView topic, IReadOnlyList<Link> links) =>
-        new(topic.Id, topic.Slug, topic.Name, TopicStatusText.Of(topic.Status), topic.Score, topic.Prerequisites, links);
+        new(
+            topic.Id,
+            topic.Slug,
+            topic.Name,
+            TopicStatusText.Of(topic.Status),
+            topic.Score,
+            topic.Prerequisites,
+            topic.CompletedLessons,
+            topic.TotalLessons,
+            links);
 }
 
 /// <summary>

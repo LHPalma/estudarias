@@ -16,6 +16,13 @@ public sealed record AttemptFeedbackResponse(string Kind, string CorrectAnswer, 
 /// <summary>O tópico do exercício depois da resposta, já com ela: status, nota (uma casa, para baixo) e o total de tentativas.</summary>
 public sealed record AttemptTopicResponse(Guid Id, string Status, decimal Score, int AttemptCount);
 
+/// <summary>
+/// A lição do exercício depois da resposta, já com ela: <c>Status</c> é <c>notStarted</c>, <c>inProgress</c> ou <c>completed</c>, e
+/// <c>CompletedExercises</c> de <c>TotalExercises</c> diz quantos exercícios o aluno já acertou. A tela de fim de lição mostra "Lição
+/// concluída" só quando for verdade.
+/// </summary>
+public sealed record AttemptLessonResponse(Guid Id, string Status, int CompletedExercises, int TotalExercises);
+
 /// <summary>Um tópico que esta resposta liberou.</summary>
 public sealed record AttemptUnlockedTopicResponse(Guid Id, string Name);
 
@@ -32,6 +39,7 @@ public sealed record AttemptResponse(
     Guid CorrectAlternativeId,
     AttemptFeedbackResponse Feedback,
     AttemptTopicResponse Topic,
+    AttemptLessonResponse Lesson,
     IReadOnlyList<AttemptUnlockedTopicResponse> UnlockedTopics,
     AttemptFlashcardResponse? Flashcard,
     IReadOnlyList<Link> Links)
@@ -48,6 +56,11 @@ public sealed record AttemptResponse(
                     ? new AttemptErrorTypeResponse(name, feedback)
                     : null),
             new AttemptTopicResponse(result.Topic.Id, TopicStatusText.Of(result.Topic.Status), result.Topic.Score, result.Topic.AttemptCount),
+            new AttemptLessonResponse(
+                result.Lesson.Id,
+                LessonStatusText.Of(result.Lesson.Status),
+                result.Lesson.CompletedExercises,
+                result.Lesson.TotalExercises),
             [.. result.UnlockedTopics.Select(topic => new AttemptUnlockedTopicResponse(topic.Id, topic.Name))],
             result.Flashcard is { } card ? new AttemptFlashcardResponse(card.Id, card.NextReviewAt) : null,
             links);
