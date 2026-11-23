@@ -35,10 +35,11 @@ public sealed class LessonController(ICurrentUser currentUser, ILessonReads less
 
         var lesson = await lessons.FindAsync(userId, lessonId, cancellationToken);
 
-        // O link answer de cada exercício entra com o POST /exercises/{id}/attempts (#88): um link só existe quando a rota existe.
+        // A lição de um tópico bloqueado nem chega aqui (403), então todo exercício dela pode ser respondido: a ação existe (RN-TRL-09).
         return Ok(LessonResponse.From(
             lesson,
-            _ => [],
+            exercise => [Url.LinkTo(
+                LinkRelations.Answer, HttpMethods.Post, AttemptController.SubmitAttemptRoute, new { exerciseId = exercise.Id })],
             [
                 Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetLessonRoute, new { lessonId }),
                 Url.LinkTo(LinkRelations.Topic, HttpMethods.Get, TopicController.GetTopicRoute, new { topicId = lesson.TopicId }),

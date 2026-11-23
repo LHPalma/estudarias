@@ -12,6 +12,9 @@ public static class LinkRelations
     /// <summary>Um tópico (<c>GET /topics/{id}</c>): o item da trilha e a lição apontam para ele.</summary>
     public const string Topic = "topic";
 
+    /// <summary>Responder um exercício (<c>POST /exercises/{id}/attempts</c>): só existe quando o tópico do exercício não está bloqueado.</summary>
+    public const string Answer = "answer";
+
     /// <summary>Uma lição (<c>GET /lessons/{id}</c>): só existe quando o tópico dela não está bloqueado.</summary>
     public const string Lesson = "lesson";
 
