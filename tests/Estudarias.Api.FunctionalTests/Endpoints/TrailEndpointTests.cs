@@ -115,6 +115,23 @@ public class TrailEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
         }
     }
 
+    [Fact(DisplayName = "A trilha traz o link reviews, com a URL absoluta das revisões do dia, e ele abre a lista")]
+    public async Task Trail_LinksToTheDueReviews()
+    {
+        // Arrange
+        await LoadContentAsync();
+        var session = await RegisterAsync();
+        var trail = await TrailAsync(session);
+
+        // Act
+        var reviews = await GetWithTokenAsync(RelOf(trail, "reviews"), AccessTokenOf(session));
+
+        // Assert
+        Assert.Equal(["self", "reviews"], trail.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
+        Assert.Equal("http://localhost/reviews/due", RelOf(trail, "reviews"));
+        Assert.Equal(HttpStatusCode.OK, reviews.StatusCode);
+    }
+
     [Fact(DisplayName = "O link trail do perfil leva à trilha")]
     public async Task Trail_IsReachableFromTheProfileLink()
     {

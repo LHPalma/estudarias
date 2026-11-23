@@ -221,7 +221,7 @@ public class AttemptEndpointTests(PostgresFixture postgres) : ContentEndpointsTe
         Assert.Equal(0, after.GetProperty("dueReviews").GetInt32());
     }
 
-    [Fact(DisplayName = "A resposta traz o link topic, que leva ao tópico com a nota nova")]
+    [Fact(DisplayName = "A resposta traz os links topic e reviews, e o topic leva ao tópico com a nota nova")]
     public async Task Attempt_LinksToTheTopic()
     {
         // Arrange
@@ -231,9 +231,9 @@ public class AttemptEndpointTests(PostgresFixture postgres) : ContentEndpointsTe
         var result = await AnswerOkAsync(session, exerciseId, correct: true);
 
         // Assert
-        var link = Assert.Single(result.GetProperty("links").EnumerateArray());
-        Assert.Equal(("topic", "GET"), (link.GetProperty("rel").GetString(), link.GetProperty("method").GetString()));
-        var topic = await JsonAsync(await GetWithTokenAsync(link.GetProperty("href").GetString()!, AccessTokenOf(session)));
+        Assert.Equal(["topic", "reviews"], result.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
+        Assert.Equal("http://localhost/reviews/due", RelOf(result, "reviews"));
+        var topic = await JsonAsync(await GetWithTokenAsync(RelOf(result, "topic"), AccessTokenOf(session)));
         Assert.Equal(result.GetProperty("topic").GetProperty("score").GetDecimal(), topic.GetProperty("score").GetDecimal());
         Assert.Equal(1, topic.GetProperty("attemptCount").GetInt32());
     }
