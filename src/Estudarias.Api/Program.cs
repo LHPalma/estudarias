@@ -20,7 +20,8 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Modo comando: carrega o conteúdo e termina, sem subir o servidor (dotnet run --project src/Estudarias.Api -- seed content/).
+// Modo comando: carrega o conteúdo e termina, sem subir o servidor (dotnet run --project src/Estudarias.Api -- seed "$PWD/content").
+// O caminho é absoluto porque o dotnet run executa o programa com a pasta do projeto como diretório de trabalho.
 if (SeedCommand.IsRequested(args))
 {
     Environment.ExitCode = await SeedCommand.RunAsync(app.Services, args, Console.Out);
