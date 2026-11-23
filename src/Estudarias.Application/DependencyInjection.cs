@@ -1,5 +1,6 @@
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students.Queries;
+using Estudarias.Application.Trail;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<LoginHandler>();
         services.AddScoped<RefreshSessionHandler>();
         services.AddScoped<LogoutHandler>();
+        services.AddScoped<UnlockInitialTopicsHandler>();
 
         // As leituras não passam por caso de uso: a API chama a porta de leitura direto.
         services.AddScoped<IProfileReads, ProfileReads>();
