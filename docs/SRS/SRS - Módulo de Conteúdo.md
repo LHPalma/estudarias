@@ -1,6 +1,6 @@
 # SRS — Módulo de Conteúdo (Tópicos, Lições, Exercícios, Tipos de Erro e Flashcards)
 
-**Status:** Em implementação. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83) está implementada: mapeamento, restrições, migration `AddContent` e testes de integração (Seção 8.3). A carga do seed YAML e o conteúdo inicial (#85) também estão implementados: o comando `seed`, o validador, a carga com upsert e os arquivos `content/operacoes-basicas.yaml` e `content/fracoes.yaml` (Seção 8.4). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. Os agregados do conteúdo já estão no Domain e na `main` (Topic #17, Lesson #27, ErrorType #28, Exercise #29 e Flashcard #31, nos PRs #25, #65, #63, #77 e #67). A persistência (#83) está implementada: mapeamento, restrições, migration `AddContent` e testes de integração (Seção 8.3). A carga do seed YAML e o conteúdo inicial (#85) também estão implementados: o comando `seed`, o validador, a carga com upsert e os arquivos `content/operacoes-basicas.yaml`, `content/fracoes.yaml`, `content/equacoes-1-grau.yaml` e `content/porcentagem.yaml` (Seção 8.4). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 ---
 
@@ -159,8 +159,10 @@ Um arquivo inválido **não grava nada**, nem dos arquivos válidos (FA-CNT-01).
 
 A carga traz dois arquivos:
 
-- `operacoes-basicas.yaml`: curto, para a trilha ter uma raiz.
-- `fracoes.yaml`: completo, com os tipos de erro de soma de frações do documento do projeto, as lições, os exercícios e os flashcards. Depende de Operações básicas.
+- `operacoes-basicas.yaml`: a raiz da trilha, com soma, subtração, multiplicação e divisão (três lições e dez exercícios).
+- `fracoes.yaml`: completo, com os tipos de erro de soma de frações do documento do projeto, as lições (três), nove exercícios e os flashcards. Depende de Operações básicas.
+- `equacoes-1-grau.yaml`: três lições (uma operação, multiplicação e divisão, duas operações), nove exercícios e cinco tipos de erro, cada um com o flashcard, mais um cartão manual. Depende de Frações.
+- `porcentagem.yaml`: três lições (porcentagem de um valor, aumento e desconto, que porcentagem um valor representa), nove exercícios e sete tipos de erro, cada um com o flashcard, mais dois cartões manuais. Depende de Frações.
 
 Sem isso não há o que estudar nem o que testar com alunos.
 
@@ -450,7 +452,7 @@ São erros de domínio da construção dos agregados. **Nenhum vira resposta HTT
 | RN-CNT-05, RN-CNT-10, RF-CNT-06 (a ordem do arquivo) | #104: `Position` em `Exercise` e `Alternative`, `ExerciseConfiguration`, migration `AddContentOrder`, `ContentLoader` | `ExerciseTests` (numeração, `Revise` reordenando e mantendo ids); `ContentConfigurationTests` (`CHECK`s e ida e volta); `AddContentOrderMigrationTests` (o preenchimento das linhas antigas); `ContentLoaderTests` (ordem do arquivo, recarga com a ordem trocada) |
 | RF-CNT-06, RN-CNT-11, RN-CNT-12, RN-CNT-13, FA-CNT-06, FA-CNT-07 | #85: `ContentLoader`, `YamlContentReader`, `SeedCommand`, métodos de revisão do Domain, migration `AddContentCodes` | Integração da carga: carga inicial, recarga idempotente, arquivo inválido sem gravar nada |
 | RF-CNT-07, RN-CNT-08, RN-CNT-09, FA-CNT-01 a FA-CNT-05 | #85: `ContentValidator` | `ContentValidatorTests` (Application), uma regra por teste; `YamlContentReaderTests` (formato e conteúdo do repositório válido, sem banco) |
-| RF-CNT-08 | #85: `content/operacoes-basicas.yaml` e `content/fracoes.yaml` | `ContentLoaderTests`: carga dos dois arquivos contra o PostgreSQL real, recarga idempotente, revisão mantendo os ids, alternativa removida e arquivo inválido sem gravar nada |
+| RF-CNT-08 | #85, #114, #115 e #116: `content/operacoes-basicas.yaml`, `content/fracoes.yaml`, `content/equacoes-1-grau.yaml` e `content/porcentagem.yaml` | `ContentLoaderTests`: carga dos arquivos contra o PostgreSQL real, recarga idempotente, revisão mantendo os ids, alternativa removida e arquivo inválido sem gravar nada |
 
 ---
 

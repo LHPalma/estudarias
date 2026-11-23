@@ -66,12 +66,25 @@ lessons:
             errorType: inverte_fracao
           - text: "{1/3}"
             errorType: usa_resto_como_todo
+      - code: canteiros_com_flores
+        statement: Um jardim foi dividido em 10 canteiros iguais e Carla plantou flores em 7. Que fração do jardim tem flores?
+        difficulty: easy
+        alternatives:
+          - text: "{7/10}"
+            correct: true
+          - text: "{10/7}"
+            errorType: inverte_fracao
+          - text: "{3/10}"
+            errorType: responde_o_complemento
+          - text: "{7/3}"
+            errorType: usa_resto_como_todo
 
   - order: 2
     title: Frações equivalentes
     content: |
       Frações equivalentes representam a mesma parte do todo: {1/2} e {3/6} são a mesma metade.
-      Para trocar o denominador sem mudar a fração, multiplique o numerador e o denominador pelo mesmo número: {1/2} = {1×3/2×3} = {3/6}.
+      Para trocar o denominador sem mudar a fração, multiplique o numerador e o denominador pelo mesmo número. Multiplicando por 3, 1 × 3 = 3 e 2 × 3 = 6, então {1/2} = {3/6}.
+      O mesmo vale para dividir: dividindo o numerador e o denominador por 6, {18/24} = {3/4}.
     exercises:
       - code: meio_em_sextos
         statement: Qual fração com denominador 6 é equivalente a {1/2}?
@@ -92,6 +105,16 @@ lessons:
           - text: "{2/12}"
             errorType: nao_converte_numerador
           - text: "{12/8}"
+            errorType: inverte_fracao
+      - code: simplificar_dezoito_vinte_e_quatro_avos
+        statement: Qual é a fração mais simples equivalente a {18/24}?
+        difficulty: hard
+        alternatives:
+          - text: "{3/4}"
+            correct: true
+          - text: "{18/4}"
+            errorType: nao_converte_numerador
+          - text: "{4/3}"
             errorType: inverte_fracao
 
   - order: 3

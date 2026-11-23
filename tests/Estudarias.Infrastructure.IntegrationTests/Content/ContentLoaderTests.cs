@@ -210,7 +210,7 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
         Assert.Equal(5, result.Unchanged);
     }
 
-    [Fact(DisplayName = "O conteúdo do repositório carrega inteiro: Operações básicas e Frações, com tudo o que cada um tem")]
+    [Fact(DisplayName = "O conteúdo do repositório carrega inteiro: Operações básicas, Frações, Equações do 1º grau e Porcentagem, com tudo o que cada um tem")]
     public async Task Load_TheRepositoryContent_CreatesEverything()
     {
         // Act
@@ -218,17 +218,25 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
 
         // Assert
         Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
-        Assert.Equal((34, 0, 0), (result.Created, result.Updated, result.Unchanged));
-        Assert.Equal(2, await ScalarAsync<long>("SELECT count(*) FROM topic"));
-        Assert.Equal(9, await ScalarAsync<long>("SELECT count(*) FROM error_type"));
-        Assert.Equal(4, await ScalarAsync<long>("SELECT count(*) FROM lesson"));
-        Assert.Equal(9, await ScalarAsync<long>("SELECT count(*) FROM exercise"));
-        Assert.Equal(32, await ScalarAsync<long>("SELECT count(*) FROM alternative"));
-        Assert.Equal(10, await ScalarAsync<long>("SELECT count(*) FROM flashcard"));
+        Assert.Equal((113, 0, 0), (result.Created, result.Updated, result.Unchanged));
+        Assert.Equal(4, await ScalarAsync<long>("SELECT count(*) FROM topic"));
+        Assert.Equal(27, await ScalarAsync<long>("SELECT count(*) FROM error_type"));
+        Assert.Equal(12, await ScalarAsync<long>("SELECT count(*) FROM lesson"));
+        Assert.Equal(37, await ScalarAsync<long>("SELECT count(*) FROM exercise"));
+        Assert.Equal(128, await ScalarAsync<long>("SELECT count(*) FROM alternative"));
+        Assert.Equal(33, await ScalarAsync<long>("SELECT count(*) FROM flashcard"));
         Assert.Equal(
             "operacoes-basicas",
             await ScalarAsync<string>(
                 "SELECT p.slug FROM topic_prerequisite tp JOIN topic t ON t.id = tp.topic_id JOIN topic p ON p.id = tp.prerequisite_id WHERE t.slug = 'fracoes'"));
+        Assert.Equal(
+            "fracoes",
+            await ScalarAsync<string>(
+                "SELECT p.slug FROM topic_prerequisite tp JOIN topic t ON t.id = tp.topic_id JOIN topic p ON p.id = tp.prerequisite_id WHERE t.slug = 'equacoes-1-grau'"));
+        Assert.Equal(
+            "fracoes",
+            await ScalarAsync<string>(
+                "SELECT p.slug FROM topic_prerequisite tp JOIN topic t ON t.id = tp.topic_id JOIN topic p ON p.id = tp.prerequisite_id WHERE t.slug = 'porcentagem'"));
     }
 
     [Fact(DisplayName = "Recarregar o mesmo conteúdo não muda nada: nenhum item novo, nenhum id trocado, tudo igual no resumo")]
@@ -243,7 +251,7 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
 
         // Assert
         Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
-        Assert.Equal((0, 0, 34), (result.Created, result.Updated, result.Unchanged));
+        Assert.Equal((0, 0, 113), (result.Created, result.Updated, result.Unchanged));
         Assert.Equal(before, await AllContentIdsAsync());
     }
 

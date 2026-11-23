@@ -1,0 +1,202 @@
+# Porcentagem: calcular a porcentagem de um valor, aplicar aumento e desconto, e descobrir que porcentagem uma parte é do todo.
+# Formato e regras: docs/SRS/SRS - Módulo de Conteúdo.md (RF-CNT-06 e RF-CNT-07). {a/b} no texto é uma fração, que o app desenha.
+# Os códigos são a chave natural de cada item: mudar um código cria um item novo, e o antigo continua no banco. Uma alternativa não
+# pode ser removida de um exercício já carregado (as tentativas apontam para ela): para trocá-las, crie um exercício com código novo.
+
+slug: porcentagem
+name: Porcentagem
+prerequisites:
+  - fracoes
+
+errorTypes:
+  - code: confunde_porcento
+    name: Trata a porcentagem como número comum
+    description: Devolve o número da porcentagem como se fosse o resultado, ou o valor encontrado como se fosse a porcentagem.
+    feedback: Porcentagem é uma fração de 100, e não um valor solto. 25% quer dizer {25/100}, e o resultado se calcula sobre o valor do problema.
+  - code: esquece_de_dividir_por_100
+    name: Esquece de dividir por 100
+    description: Multiplica o valor pelo número da porcentagem e para aí.
+    feedback: 25% é {25/100}. Depois de multiplicar o valor por 25, falta dividir por 100.
+  - code: divide_pela_porcentagem
+    name: Divide o valor pelo número da porcentagem
+    description: Divide o valor pelo número da porcentagem em vez de multiplicar pela fração.
+    feedback: Para achar uma porcentagem de um valor, multiplique o valor pela fração, e não divida pelo número. 25% de 60 é 60 × {25/100}.
+  - code: soma_ou_subtrai_o_percentual_direto
+    name: Soma ou subtrai o número da porcentagem direto do valor
+    description: Num aumento ou desconto, soma ou subtrai o número da porcentagem, como se fosse um valor em reais.
+    feedback: Uma porcentagem é uma parte do valor, e não uma quantia. Calcule a porcentagem do valor primeiro, e só então some ou subtraia.
+  - code: responde_so_a_variacao
+    name: Responde só o valor do desconto ou do aumento
+    description: Calcula quanto vale o desconto ou o aumento e responde isso, em vez do preço final.
+    feedback: O desconto ou o aumento é só uma parte da conta. O preço final é o valor inicial menos o desconto, ou mais o aumento.
+  - code: inverte_parte_e_todo
+    name: Inverte a parte e o todo
+    description: Divide o todo pela parte em vez de dividir a parte pelo todo.
+    feedback: A parte fica em cima e o todo fica embaixo. Para saber que porcentagem uma parte é do todo, divida a parte pelo todo.
+  - code: esquece_de_multiplicar_por_100
+    name: Esquece de multiplicar por 100
+    description: Divide a parte pelo todo e responde o decimal, sem passar para porcentagem.
+    feedback: Depois de dividir a parte pelo todo, multiplique por 100 para escrever o resultado como porcentagem.
+
+lessons:
+  - order: 1
+    title: Porcentagem de um valor
+    content: |
+      Porcentagem é uma fração de 100. 25% quer dizer {25/100}: 25 partes em cada 100.
+      Para achar uma porcentagem de um valor, multiplique o valor pela fração e simplifique. 25% de 80 é 80 × {25/100} = 20.
+      Alguns atalhos: 50% é a metade, 25% é a quarta parte e 10% é a décima parte do valor.
+    exercises:
+      - code: cinquenta_por_cento_de_oitenta
+        statement: Quanto é 50% de 80?
+        difficulty: easy
+        alternatives:
+          - text: "40"
+            correct: true
+          - text: "50"
+            errorType: confunde_porcento
+          - text: "4000"
+            errorType: esquece_de_dividir_por_100
+          - text: "1,6"
+            errorType: divide_pela_porcentagem
+      - code: vinte_e_cinco_por_cento_de_sessenta
+        statement: Quanto é 25% de 60?
+        difficulty: easy
+        alternatives:
+          - text: "15"
+            correct: true
+          - text: "25"
+            errorType: confunde_porcento
+          - text: "1500"
+            errorType: esquece_de_dividir_por_100
+          - text: "2,4"
+            errorType: divide_pela_porcentagem
+      - code: quinze_por_cento_de_duzentos
+        statement: Quanto é 15% de 200?
+        difficulty: medium
+        alternatives:
+          - text: "30"
+            correct: true
+          - text: "15"
+            errorType: confunde_porcento
+          - text: "3000"
+            errorType: esquece_de_dividir_por_100
+          - text: "{40/3}"
+            errorType: divide_pela_porcentagem
+
+  - order: 2
+    title: Aumento e desconto
+    content: |
+      Para dar um desconto, calcule a porcentagem do valor e subtraia do valor. Para um aumento, calcule e some.
+      Um produto de R$ 50 com 20% de desconto: 20% de 50 é 10, e 50 − 10 = 40. O preço final é R$ 40.
+      Um produto de R$ 200 com 10% de aumento: 10% de 200 é 20, e 200 + 20 = 220. O novo preço é R$ 220.
+      A porcentagem é uma parte do valor. Ela não se soma nem se subtrai direto do valor.
+    exercises:
+      - code: camiseta_com_vinte_por_cento_de_desconto
+        statement: Uma camiseta custa R$ 50 e está com 20% de desconto. Quanto ela custa agora?
+        difficulty: easy
+        alternatives:
+          - text: "R$ 40"
+            correct: true
+          - text: "R$ 30"
+            errorType: soma_ou_subtrai_o_percentual_direto
+          - text: "R$ 10"
+            errorType: responde_so_a_variacao
+      - code: tenis_com_dez_por_cento_de_aumento
+        statement: Um tênis custa R$ 200 e vai ter um aumento de 10%. Qual será o novo preço?
+        difficulty: medium
+        alternatives:
+          - text: "R$ 220"
+            correct: true
+          - text: "R$ 210"
+            errorType: soma_ou_subtrai_o_percentual_direto
+          - text: "R$ 20"
+            errorType: responde_so_a_variacao
+      - code: bicicleta_com_quinze_por_cento_de_desconto
+        statement: Uma bicicleta custa R$ 400 e tem 15% de desconto. Quanto ela custa com o desconto?
+        difficulty: hard
+        alternatives:
+          - text: "R$ 340"
+            correct: true
+          - text: "R$ 385"
+            errorType: soma_ou_subtrai_o_percentual_direto
+          - text: "R$ 60"
+            errorType: responde_so_a_variacao
+
+  - order: 3
+    title: Que porcentagem um valor representa
+    content: |
+      Para saber que porcentagem uma parte é do todo, divida a parte pelo todo e multiplique por 100.
+      10 é que porcentagem de 50? 10 ÷ 50 = 0,2, e 0,2 × 100 = 20. Então 10 é 20% de 50.
+      A parte fica em cima e o todo embaixo: {10/50} = {20/100} = 20%.
+      Para saber o aumento ou o desconto em porcentagem, compare a diferença com o valor inicial.
+    exercises:
+      - code: dez_e_quanto_por_cento_de_cinquenta
+        statement: 10 é que porcentagem de 50?
+        difficulty: medium
+        alternatives:
+          - text: 20%
+            correct: true
+          - text: 500%
+            errorType: inverte_parte_e_todo
+          - text: 0,2%
+            errorType: esquece_de_multiplicar_por_100
+      - code: faltas_na_turma_de_quarenta
+        statement: Numa turma de 40 alunos, 10 faltaram. Que porcentagem da turma faltou?
+        difficulty: medium
+        alternatives:
+          - text: 25%
+            correct: true
+          - text: 400%
+            errorType: inverte_parte_e_todo
+          - text: 0,25%
+            errorType: esquece_de_multiplicar_por_100
+          - text: 10%
+            errorType: confunde_porcento
+      - code: aumento_de_oitenta_para_cem
+        statement: Um produto custava R$ 80 e passou a custar R$ 100. De quantos por cento foi o aumento?
+        difficulty: hard
+        alternatives:
+          - text: 25%
+            correct: true
+          - text: 20%
+            errorType: confunde_porcento
+          - text: 400%
+            errorType: inverte_parte_e_todo
+          - text: 0,25%
+            errorType: esquece_de_multiplicar_por_100
+
+flashcards:
+  - code: o_numero_do_percentual_nao_e_a_resposta
+    errorType: confunde_porcento
+    question: Por que 25% de 60 não é 25?
+    answer: Porque 25% é uma fração, {25/100}, e não um valor. Para achar 25% de 60, calcule 60 × {25/100} = 15.
+  - code: por_que_dividir_por_100
+    errorType: esquece_de_dividir_por_100
+    question: Por que 25% de 60 não é 1500?
+    answer: Porque 25% é {25/100}. Multiplicar 60 por 25 dá 1500, mas falta dividir por 100. 1500 ÷ 100 = 15.
+  - code: porcentagem_de_um_valor_nao_e_dividir
+    errorType: divide_pela_porcentagem
+    question: Por que 25% de 60 não é 60 ÷ 25?
+    answer: Porque 25% de 60 é 60 multiplicado por {25/100}, e não 60 dividido por 25. 60 ÷ 25 = 2,4, e 25% de 60 = 15.
+  - code: desconto_nao_e_subtrair_o_numero
+    errorType: soma_ou_subtrai_o_percentual_direto
+    question: Por que 20% de desconto em R$ 50 não deixa R$ 30?
+    answer: Porque 20% é uma parte do preço, e não R$ 20. 20% de 50 é 10, e 50 − 10 = 40. O preço com desconto é R$ 40.
+  - code: desconto_e_o_quanto_sai_do_preco
+    errorType: responde_so_a_variacao
+    question: Com 20% de desconto em R$ 50, por que R$ 10 não é o preço final?
+    answer: Porque R$ 10 é o valor do desconto, o quanto sai do preço. O preço final é o que sobra, 50 − 10 = R$ 40.
+  - code: a_parte_fica_em_cima
+    errorType: inverte_parte_e_todo
+    question: Para achar que porcentagem 10 é de 50, por que não se faz 50 ÷ 10?
+    answer: Porque a parte (10) fica em cima e o todo (50) embaixo. 10 ÷ 50 = 0,2, que é 20%. Já 50 ÷ 10 = 5 diz quantas vezes o 10 cabe no 50, e não que porcentagem ele é.
+  - code: de_decimal_para_porcentagem
+    errorType: esquece_de_multiplicar_por_100
+    question: Por que 10 ÷ 50 = 0,2 ainda não é a resposta em porcentagem?
+    answer: Porque 0,2 está na forma decimal. Para virar porcentagem, multiplique por 100. 0,2 × 100 = 20%.
+  - code: o_que_e_porcentagem
+    question: O que significa 25%?
+    answer: Significa 25 partes em cada 100, ou seja, a fração {25/100}, que é o mesmo que {1/4}.
+  - code: atalhos_de_porcentagem
+    question: Quais são os atalhos para achar 50%, 25% e 10% de um valor?
+    answer: 50% é a metade, 25% é a quarta parte e 10% é a décima parte do valor. Em 80, 50% é 40, 25% é 20 e 10% é 8.
