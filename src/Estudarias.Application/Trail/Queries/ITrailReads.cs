@@ -10,5 +10,5 @@ public interface ITrailReads
     /// A trilha do aluno da conta, ou nulo quando a conta não existe, está desabilitada ou não tem aluno ligado. O chamador não
     /// distingue os três casos: para o cliente, a sessão deixou de valer.
     /// </summary>
-    Task<TrailResponse?> FindAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<TrailView?> FindAsync(Guid userId, CancellationToken cancellationToken = default);
 }

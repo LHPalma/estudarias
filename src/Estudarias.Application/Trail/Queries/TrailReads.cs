@@ -11,7 +11,7 @@ public sealed class TrailReads(IApplicationDbContext db, TimeProvider clock) : I
 {
     private const string PrerequisitesField = "_prerequisites";
 
-    public async Task<TrailResponse?> FindAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<TrailView?> FindAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var studentId = await db.Users
             .Where(user => user.Id == userId && user.IsActive)
@@ -73,7 +73,7 @@ public sealed class TrailReads(IApplicationDbContext db, TimeProvider clock) : I
 
         var items = TrailOrder
             .Sort(topics, topic => topic.Id, topic => topic.Name, topic => topic.Prerequisites)
-            .Select(topic => new TrailTopicResponse(
+            .Select(topic => new TrailTopicView(
                 topic.Id,
                 topic.Slug,
                 topic.Name,
@@ -82,7 +82,7 @@ public sealed class TrailReads(IApplicationDbContext db, TimeProvider clock) : I
                 topic.Prerequisites))
             .ToList();
 
-        return new TrailResponse(
+        return new TrailView(
             TopicMastery.Threshold,
             items.Count(item => item.Status == TopicStatus.Mastered),
             items.Count,

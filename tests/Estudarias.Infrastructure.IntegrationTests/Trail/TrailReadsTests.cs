@@ -16,15 +16,15 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
 {
     private static readonly Sm2Scheduler Scheduler = new();
 
-    private async Task<TrailResponse?> FindAsync(Guid userId)
+    private async Task<TrailView?> FindAsync(Guid userId)
     {
         using var scope = NewScope();
         return await scope.Get<ITrailReads>().FindAsync(userId, Cancel);
     }
 
-    private async Task<TrailResponse> TrailOfAsync(User user) => (await FindAsync(user.Id))!;
+    private async Task<TrailView> TrailOfAsync(User user) => (await FindAsync(user.Id))!;
 
-    private static TrailTopicResponse Topic(TrailResponse trail, Guid id) => trail.Topics.Single(topic => topic.Id == id);
+    private static TrailTopicView Topic(TrailView trail, Guid id) => trail.Topics.Single(topic => topic.Id == id);
 
     private async Task UpdateStudentAsync(Guid studentId, Action<Student> change)
     {
