@@ -188,7 +188,7 @@ public class TopicEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
         Assert.Equal(Enumerable.Range(1, orders.Count), orders);
     }
 
-    [Fact(DisplayName = "O tópico traz o link self, com a URL absoluta, e o link trail")]
+    [Fact(DisplayName = "O tópico liberado traz os links self, trail e attempts, com a URL absoluta, e o bloqueado não traz o attempts")]
     public async Task Topic_LinksToItselfAndTheTrail()
     {
         // Arrange
@@ -200,8 +200,11 @@ public class TopicEndpointTests(PostgresFixture postgres) : ContentEndpointsTest
         var topic = await TopicAsync(session, trail, "operacoes-basicas");
 
         // Assert
-        Assert.Equal(["self", "trail"], topic.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
+        Assert.Equal(["self", "trail", "attempts"], topic.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
         Assert.Equal($"http://localhost/topics/{id}", RelOf(topic, "self"));
+        Assert.Equal($"http://localhost/topics/{id}/attempts", RelOf(topic, "attempts"));
+        var locked = await TopicAsync(session, trail, "fracoes");
+        Assert.Equal(["self", "trail"], locked.GetProperty("links").EnumerateArray().Select(link => link.GetProperty("rel").GetString()));
         Assert.Equal("http://localhost/trail", RelOf(topic, "trail"));
         var followed = await JsonAsync(await GetWithTokenAsync(RelOf(topic, "self"), AccessTokenOf(session)));
         Assert.Equal(topic.GetRawText(), followed.GetRawText());
