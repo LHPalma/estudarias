@@ -204,4 +204,33 @@ public class ErrorTypeTests
         Assert.NotEqual(Guid.Empty, first.Id);
         Assert.NotEqual(first.Id, second.Id);
     }
+
+    [Fact(DisplayName = "Revisar troca o nome, a descrição e o feedback, e mantém o tópico e o código")]
+    public void Revise_ChangesTheContentAndKeepsTheKey()
+    {
+        // Arrange
+        var errorType = ErrorType.Create(TopicId, Code, Name, "Descrição", Feedback);
+
+        // Act
+        errorType.Revise("  Inverte a fração  ", "   ", "Feedback novo");
+
+        // Assert
+        Assert.Equal(
+            (TopicId, Code, "Inverte a fração", (string?)null, "Feedback novo"),
+            (errorType.TopicId, errorType.Code, errorType.Name, errorType.Description, errorType.Feedback));
+    }
+
+    [Fact(DisplayName = "Revisar aplica as regras da criação, e nada muda quando falha")]
+    public void Revise_WithoutFeedback_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var errorType = ErrorType.Create(TopicId, Code, Name, null, Feedback);
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => errorType.Revise("Outro nome", null, " "));
+
+        // Assert
+        Assert.Equal("errorType.feedback.required", exception.Code);
+        Assert.Equal(Name, errorType.Name);
+    }
 }

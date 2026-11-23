@@ -1,3 +1,4 @@
+using Estudarias.Api.Commands;
 using Estudarias.Api.ErrorHandling;
 using Estudarias.Api.Security;
 using Estudarias.Application;
@@ -16,6 +17,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+// Modo comando: carrega o conteúdo e termina, sem subir o servidor (dotnet run --project src/Estudarias.Api -- seed content/).
+if (SeedCommand.IsRequested(args))
+{
+    Environment.ExitCode = await SeedCommand.RunAsync(app.Services, args, Console.Out);
+    return;
+}
 
 if (app.Environment.IsDevelopment())
 {

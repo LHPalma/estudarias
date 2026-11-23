@@ -1,0 +1,168 @@
+# Frações: o primeiro tópico de verdade, com os tipos de erro de leitura, equivalência e soma de frações do documento do projeto.
+# Formato e regras: docs/SRS/SRS - Módulo de Conteúdo.md (RF-CNT-06 e RF-CNT-07). {a/b} no texto é uma fração, que o app desenha.
+# Os códigos são a chave natural de cada item: mudar um código cria um item novo, e o antigo continua no banco. Uma alternativa não
+# pode ser removida de um exercício já carregado (as tentativas apontam para ela): para trocá-las, crie um exercício com código novo.
+
+slug: fracoes
+name: Frações
+prerequisites:
+  - operacoes-basicas
+
+errorTypes:
+  - code: inverte_fracao
+    name: Inversão de numerador e denominador
+    description: Escreve as partes tomadas embaixo e o total em cima.
+    feedback: O denominador (embaixo) indica em quantas partes iguais o todo foi dividido; o numerador (em cima), quantas foram tomadas.
+  - code: usa_resto_como_todo
+    name: Usa o que sobrou como denominador
+    description: Usa as partes que restaram, e não o total de partes, como denominador.
+    feedback: O denominador é sempre o total de partes iguais do todo, e não as que sobraram.
+  - code: responde_o_complemento
+    name: Responde com a fração que sobrou
+    description: Responde a parte que restou quando a pergunta é sobre a parte tomada, ou o contrário.
+    feedback: Releia o que a pergunta pede. A fração que foi tomada e a que sobrou somam o todo, mas são respostas diferentes.
+  - code: nao_converte_numerador
+    name: Muda o denominador, mas esquece o numerador
+    description: Ao trocar o denominador, mantém o numerador como estava.
+    feedback: Para ter uma fração equivalente, multiplique o numerador e o denominador pelo mesmo número.
+  - code: soma_numeradores_e_denominadores
+    name: Soma numerador com numerador e denominador com denominador
+    description: Soma as frações em linha reta, sem deixar os denominadores iguais.
+    feedback: Só dá para somar os numeradores quando os denominadores são iguais. Primeiro encontre um denominador comum.
+  - code: multiplica_em_vez_de_somar
+    name: Multiplica as frações em vez de somar
+    description: Multiplica numerador com numerador e denominador com denominador quando a conta é uma soma.
+    feedback: Somar e multiplicar frações são operações diferentes. Para somar, deixe os denominadores iguais e some os numeradores.
+
+lessons:
+  - order: 1
+    title: O que é uma fração
+    content: |
+      Uma fração representa partes iguais de um todo.
+      O denominador (embaixo) diz em quantas partes iguais o todo foi dividido. O numerador (em cima) diz quantas dessas partes foram tomadas.
+      Uma pizza dividida em 8 pedaços iguais, da qual se comem 3, teve {3/8} comidos.
+    exercises:
+      - code: pizza_comida
+        statement: Uma pizza foi dividida em 8 pedaços iguais e Ana comeu 3. Que fração da pizza Ana comeu?
+        difficulty: easy
+        alternatives:
+          - text: "{3/8}"
+            correct: true
+          - text: "{8/3}"
+            errorType: inverte_fracao
+          - text: "{3/5}"
+            errorType: usa_resto_como_todo
+          - text: "{5/8}"
+            errorType: responde_o_complemento
+      - code: chocolate_que_sobrou
+        statement: Um chocolate foi dividido em 4 partes iguais e Beto comeu 1. Que fração do chocolate sobrou?
+        difficulty: easy
+        alternatives:
+          - text: "{3/4}"
+            correct: true
+          - text: "{1/4}"
+            errorType: responde_o_complemento
+          - text: "{4/3}"
+            errorType: inverte_fracao
+          - text: "{1/3}"
+            errorType: usa_resto_como_todo
+
+  - order: 2
+    title: Frações equivalentes
+    content: |
+      Frações equivalentes representam a mesma parte do todo: {1/2} e {3/6} são a mesma metade.
+      Para trocar o denominador sem mudar a fração, multiplique o numerador e o denominador pelo mesmo número: {1/2} = {1×3/2×3} = {3/6}.
+    exercises:
+      - code: meio_em_sextos
+        statement: Qual fração com denominador 6 é equivalente a {1/2}?
+        difficulty: easy
+        alternatives:
+          - text: "{3/6}"
+            correct: true
+          - text: "{1/6}"
+            errorType: nao_converte_numerador
+          - text: "{6/3}"
+            errorType: inverte_fracao
+      - code: dois_tercos_em_dozeavos
+        statement: Qual fração com denominador 12 é equivalente a {2/3}?
+        difficulty: medium
+        alternatives:
+          - text: "{8/12}"
+            correct: true
+          - text: "{2/12}"
+            errorType: nao_converte_numerador
+          - text: "{12/8}"
+            errorType: inverte_fracao
+
+  - order: 3
+    title: Soma de frações com denominadores diferentes
+    content: |
+      Para somar frações, os denominadores precisam ser iguais.
+      Encontre um denominador comum (o MMC dos denominadores), escreva cada fração com ele e só então some os numeradores:
+      {1/2} + {1/3} = {3/6} + {2/6} = {5/6}.
+    exercises:
+      - code: meio_mais_terco
+        statement: Quanto é {1/2} + {1/3}?
+        difficulty: medium
+        alternatives:
+          - text: "{5/6}"
+            correct: true
+          - text: "{2/5}"
+            errorType: soma_numeradores_e_denominadores
+          - text: "{2/6}"
+            errorType: nao_converte_numerador
+          - text: "{1/6}"
+            errorType: multiplica_em_vez_de_somar
+      - code: quarto_mais_meio
+        statement: Quanto é {1/4} + {1/2}?
+        difficulty: medium
+        alternatives:
+          - text: "{3/4}"
+            correct: true
+          - text: "{2/6}"
+            errorType: soma_numeradores_e_denominadores
+          - text: "{2/4}"
+            errorType: nao_converte_numerador
+          - text: "{1/8}"
+            errorType: multiplica_em_vez_de_somar
+      - code: dois_tercos_mais_um_quarto
+        statement: Quanto é {2/3} + {1/4}?
+        difficulty: hard
+        alternatives:
+          - text: "{11/12}"
+            correct: true
+          - text: "{3/7}"
+            errorType: soma_numeradores_e_denominadores
+          - text: "{3/12}"
+            errorType: nao_converte_numerador
+          - text: "{2/12}"
+            errorType: multiplica_em_vez_de_somar
+
+flashcards:
+  - code: o_que_e_o_denominador
+    errorType: inverte_fracao
+    question: Em {3/8}, o que o 8 indica?
+    answer: Em quantas partes iguais o todo foi dividido. O 3, em cima, indica quantas dessas partes foram tomadas.
+  - code: denominador_e_o_total
+    errorType: usa_resto_como_todo
+    question: Se uma pizza tem 8 pedaços e sobraram 5, por que a fração comida não é {3/5}?
+    answer: Porque o denominador é o total de partes do todo (8), e não as que sobraram. A fração comida é {3/8}.
+  - code: tomada_ou_que_sobrou
+    errorType: responde_o_complemento
+    question: Ana comeu 3 de 8 pedaços. Por que a resposta não é {5/8}?
+    answer: Porque {5/8} é o que sobrou. A pergunta é sobre o que Ana comeu, {3/8}; as duas juntas somam o todo, {8/8}.
+  - code: equivalente_multiplica_os_dois
+    errorType: nao_converte_numerador
+    question: Por que {1/2} não é igual a {1/6}?
+    answer: Porque, ao multiplicar o denominador por 3, o numerador também precisa ser multiplicado por 3. {1/2} = {3/6}.
+  - code: por_que_nao_soma_direto
+    errorType: soma_numeradores_e_denominadores
+    question: Por que {1/2} + {1/3} não é {2/5}?
+    answer: Porque só se somam os numeradores quando os denominadores são iguais. {1/2} + {1/3} = {3/6} + {2/6} = {5/6}.
+  - code: somar_nao_e_multiplicar
+    errorType: multiplica_em_vez_de_somar
+    question: Por que {1/2} + {1/3} não é {1/6}?
+    answer: Porque {1/6} é o produto, {1/2} × {1/3}. Para somar, iguale os denominadores e some os numeradores. O resultado é {5/6}.
+  - code: o_que_e_fracao_equivalente
+    question: O que são frações equivalentes?
+    answer: Frações que representam a mesma parte do todo, como {1/2}, {2/4} e {3/6}. Elas se obtêm multiplicando (ou dividindo) o numerador e o denominador pelo mesmo número.

@@ -8,6 +8,7 @@ public class ExerciseTests
     private static readonly Guid LessonId = Guid.CreateVersion7();
     private static readonly Guid ErrorTypeId = Guid.CreateVersion7();
 
+    private const string Code = "soma_de_fracoes";
     private const string Statement = "Quanto é 1/2 + 1/3?";
 
     private static Alternative[] ValidAlternatives() =>
@@ -18,7 +19,7 @@ public class ExerciseTests
     ];
 
     private static Exercise CreateWith(IReadOnlyCollection<Alternative> alternatives) =>
-        Exercise.Create(LessonId, Statement, Difficulty.Easy, alternatives);
+        Exercise.Create(LessonId, Code, Statement, Difficulty.Easy, alternatives);
 
     [Fact(DisplayName = "Um exercício nasce com a lição, o enunciado, a dificuldade e as alternativas informados")]
     public void Create_WithValidData_KeepsValues()
@@ -27,7 +28,7 @@ public class ExerciseTests
         var alternatives = ValidAlternatives();
 
         // Act
-        var exercise = Exercise.Create(LessonId, Statement, Difficulty.Medium, alternatives);
+        var exercise = Exercise.Create(LessonId, Code, Statement, Difficulty.Medium, alternatives);
 
         // Assert
         Assert.Equal(LessonId, exercise.LessonId);
@@ -43,7 +44,7 @@ public class ExerciseTests
         var statement = "\n  Quanto é 1/2 + 1/3?\n";
 
         // Act
-        var exercise = Exercise.Create(LessonId, statement, Difficulty.Easy, ValidAlternatives());
+        var exercise = Exercise.Create(LessonId, Code, statement, Difficulty.Easy, ValidAlternatives());
 
         // Assert
         Assert.Equal(statement, exercise.Statement);
@@ -78,7 +79,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(Guid.Empty, Statement, Difficulty.Easy, ValidAlternatives()));
+            () => Exercise.Create(Guid.Empty, Code, Statement, Difficulty.Easy, ValidAlternatives()));
         Assert.Equal("exercise.lesson.required", exception.Code);
     }
 
@@ -91,7 +92,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(LessonId, statement!, Difficulty.Easy, ValidAlternatives()));
+            () => Exercise.Create(LessonId, Code, statement!, Difficulty.Easy, ValidAlternatives()));
         Assert.Equal("exercise.statement.required", exception.Code);
     }
 
@@ -103,7 +104,7 @@ public class ExerciseTests
     {
         // Act & Assert
         var exception = Assert.Throws<DomainValidationException>(
-            () => Exercise.Create(LessonId, Statement, (Difficulty)difficulty, ValidAlternatives()));
+            () => Exercise.Create(LessonId, Code, Statement, (Difficulty)difficulty, ValidAlternatives()));
         Assert.Equal("exercise.difficulty.invalid", exception.Code);
     }
 
@@ -174,5 +175,112 @@ public class ExerciseTests
         // Assert
         Assert.NotEqual(Guid.Empty, first.Id);
         Assert.NotEqual(first.Id, second.Id);
+    }
+
+    [Theory(DisplayName = "O código do exercício é obrigatório e tem o formato dos códigos de conteúdo")]
+    [InlineData(null, "exercise.code.required")]
+    [InlineData("   ", "exercise.code.required")]
+    [InlineData("Soma", "exercise.code.invalid")]
+    [InlineData("1_soma", "exercise.code.invalid")]
+    [InlineData("soma-de-fracoes", "exercise.code.invalid")]
+    [InlineData("soma__fracoes", "exercise.code.invalid")]
+    public void Create_WithAnInvalidCode_ThrowsDomainValidationException(string? code, string expected)
+    {
+        // Act & Assert
+        var exception = Assert.Throws<DomainValidationException>(
+            () => Exercise.Create(LessonId, code!, Statement, Difficulty.Easy, ValidAlternatives()));
+        Assert.Equal(expected, exception.Code);
+    }
+
+    [Fact(DisplayName = "Revisar troca a lição, o enunciado e a dificuldade, e mantém o código")]
+    public void Revise_ChangesTheContentAndKeepsTheCode()
+    {
+        // Arrange
+        var exercise = CreateWith(ValidAlternatives());
+        var otherLesson = Guid.CreateVersion7();
+
+        // Act
+        exercise.Revise(otherLesson, "Quanto é 1/3 + 1/2?", Difficulty.Hard, ValidAlternatives());
+
+        // Assert
+        Assert.Equal(
+            (otherLesson, "Quanto é 1/3 + 1/2?", Difficulty.Hard, Code),
+            (exercise.LessonId, exercise.Statement, exercise.Difficulty, exercise.Code));
+    }
+
+    [Fact(DisplayName = "Revisar mantém o id da alternativa de mesmo texto, sem diferenciar maiúsculas, e assume a correção nova")]
+    public void Revise_KeepsTheIdOfAlternativesWithTheSameText()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Correct("5/6"), Alternative.Wrong("Dois quintos", ErrorTypeId)]);
+        var correctId = exercise.Alternatives.Single(alternative => alternative.IsCorrect).Id;
+        var wrongId = exercise.Alternatives.Single(alternative => !alternative.IsCorrect).Id;
+        var otherErrorType = Guid.CreateVersion7();
+
+        // Act
+        exercise.Revise(
+            LessonId, Statement, Difficulty.Easy, [Alternative.Wrong("5/6", otherErrorType), Alternative.Correct("dois QUINTOS")]);
+
+        // Assert
+        var formerCorrect = exercise.Alternatives.Single(alternative => alternative.Id == correctId);
+        var formerWrong = exercise.Alternatives.Single(alternative => alternative.Id == wrongId);
+        Assert.Equal((false, (Guid?)otherErrorType), (formerCorrect.IsCorrect, formerCorrect.ErrorTypeId));
+        Assert.Equal(("dois QUINTOS", true, (Guid?)null), (formerWrong.Text, formerWrong.IsCorrect, formerWrong.ErrorTypeId));
+        Assert.Equal(2, exercise.Alternatives.Count);
+    }
+
+    [Fact(DisplayName = "Revisar acrescenta a alternativa nova com id próprio")]
+    public void Revise_AddsNewAlternatives()
+    {
+        // Arrange
+        var exercise = CreateWith([Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId)]);
+        var ids = exercise.Alternatives.Select(alternative => alternative.Id).ToList();
+
+        // Act
+        exercise.Revise(
+            LessonId,
+            Statement,
+            Difficulty.Easy,
+            [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId), Alternative.Wrong("1/6", ErrorTypeId)]);
+
+        // Assert
+        Assert.Equal(3, exercise.Alternatives.Count);
+        Assert.Equal(ids, exercise.Alternatives.Take(2).Select(alternative => alternative.Id));
+        Assert.DoesNotContain(exercise.Alternatives.Single(alternative => alternative.Text == "1/6").Id, ids);
+    }
+
+    [Fact(DisplayName = "Revisar sem uma alternativa que já existia é recusado, e nada muda")]
+    public void Revise_RemovingAnAlternative_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var exercise = CreateWith(ValidAlternatives());
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => exercise.Revise(
+            Guid.CreateVersion7(), "Outro", Difficulty.Hard, [Alternative.Correct("5/6"), Alternative.Wrong("2/5", ErrorTypeId)]));
+
+        // Assert
+        Assert.Equal("exercise.alternative.removed", exception.Code);
+        Assert.Equal(
+            (LessonId, Statement, Difficulty.Easy, 3),
+            (exercise.LessonId, exercise.Statement, exercise.Difficulty, exercise.Alternatives.Count));
+    }
+
+    [Fact(DisplayName = "Revisar aplica as regras das alternativas da criação, e nada muda quando falha")]
+    public void Revise_WithTwoCorrect_ThrowsAndChangesNothing()
+    {
+        // Arrange
+        var exercise = CreateWith(ValidAlternatives());
+
+        // Act
+        var exception = Assert.Throws<DomainValidationException>(() => exercise.Revise(
+            LessonId,
+            Statement,
+            Difficulty.Easy,
+            [Alternative.Correct("5/6"), Alternative.Correct("2/5"), Alternative.Wrong("2/6", ErrorTypeId)]));
+
+        // Assert
+        Assert.Equal("exercise.alternative.multipleCorrect", exception.Code);
+        Assert.Equal("5/6", Assert.Single(exercise.Alternatives, alternative => alternative.IsCorrect).Text);
     }
 }

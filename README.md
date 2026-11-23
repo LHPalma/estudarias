@@ -82,6 +82,22 @@ dotnet ef database update --project src/Estudarias.Infrastructure
 
 Para gerar uma migration nova: `dotnet ef migrations add <Nome> --project src/Estudarias.Infrastructure --output-dir Persistence/Migrations`.
 
+## Conteúdo
+
+O que o aluno estuda (tópicos, tipos de erro, lições, exercícios e flashcards) fica em YAML na pasta [`content/`](content/), um
+arquivo por tópico (`content/<slug>.yaml`), revisado por pull request como código. Nada de conteúdo é editado pela API. Para
+carregar no banco, com as migrations já aplicadas:
+
+```bash
+dotnet run --project src/Estudarias.Api -- seed content/
+```
+
+O comando valida todos os arquivos antes de gravar e grava tudo numa transação. Se algum arquivo tiver problema, ele lista cada
+problema com o arquivo e o item, sai com código 1 e não grava nada. Cada item é achado pela chave natural (o `slug` do tópico, o
+`code` do tipo de erro, do exercício e do flashcard, e o `order` da lição), então recarregar o mesmo arquivo não duplica nada e
+mantém os ids. Um item que sai do YAML continua no banco, e uma alternativa não pode ser removida de um exercício já carregado. As
+regras completas estão no [SRS de Conteúdo](docs/SRS/SRS%20-%20M%C3%B3dulo%20de%20Conte%C3%BAdo.md).
+
 ## Senhas
 
 A senha é guardada com Argon2id, e o hash é derivado com um **pepper**: um segredo global, versionado, que fica fora do banco. Um

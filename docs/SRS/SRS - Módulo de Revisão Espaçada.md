@@ -1,6 +1,6 @@
 # SRS — Módulo de Revisão Espaçada (Flashcards do Aluno, Revisões do Dia e SM-2)
 
-**Status:** Rascunho. O núcleo já está no Domain e na `main` (#20, PR #76): o port `IReviewScheduler`, o SM-2 (`Sm2Schedule` e `Sm2Scheduler`), o agregado `StudentFlashcard` com a criação e a revisão, e o ADR-003. Faltam a persistência do cartão do aluno (#84) e os endpoints `GET /reviews/due` e `POST /reviews/{id}`, com o caso de uso `ReviewFlashcard` (#89). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. O núcleo já está no Domain e na `main` (#20, PR #76): o port `IReviewScheduler`, o SM-2 (`Sm2Schedule` e `Sm2Scheduler`), o agregado `StudentFlashcard` com a criação e a revisão, e o ADR-003. A persistência do cartão do aluno (#84) está implementada (tabela `student_flashcard`, Seção 8.2). Faltam os endpoints `GET /reviews/due` e `POST /reviews/{id}`, com o caso de uso `ReviewFlashcard` (#89). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 **Pendências de decisão:** PEND-REV-01 e PEND-REV-02 (Seção 7.5).
 
@@ -160,7 +160,7 @@ A trilha traz `dueReviews`: quantos cartões do aluno estão vencidos agora, par
 
 ### RF-REV-06: Persistência do cartão do aluno (#84)
 
-`StudentFlashcard` é mapeado na tabela `student_flashcard`, com `algorithm`, `scheduling_state` (`jsonb`) e `next_review_at` como colunas próprias, o índice único `(student_id, flashcard_id)` e o índice `(student_id, next_review_at)` das revisões do dia (ADR-003). Um repositório de escrita (`IStudentFlashcardRepository`) carrega e grava o agregado.
+`StudentFlashcard` é mapeado na tabela `student_flashcard`, com `algorithm`, `scheduling_state` (`jsonb`) e `next_review_at` como colunas próprias, o índice único `(student_id, flashcard_id)` e o índice `(student_id, next_review_at)` das revisões do dia (ADR-003). Um repositório de escrita (`IStudentFlashcardRepository`) carrega e grava o agregado: `FindAsync(id, studentId)` traz o cartão só se for do aluno (o de outro aluno volta nulo, como um que não existe), `ExistsAsync(studentId, flashcardId)` responde se o aluno já tem o cartão (RN-REV-12), e `Add` grava. As revisões do dia são leitura, pelo `IApplicationDbContext.StudentFlashcards` (ADR-002).
 
 ### RF-REV-07: Escolha do algoritmo no composition root
 
@@ -397,7 +397,7 @@ erDiagram
 | `scheduling_state` | jsonb NOT NULL | Opaco para o Domain; só o adapter o lê e escreve (RN-REV-02) |
 | `next_review_at` | timestamptz NOT NULL | Coluna própria e indexada: é por ela que as revisões do dia são buscadas |
 
-Índices: único `(student_id, flashcard_id)` (RN-REV-12) e `(student_id, next_review_at)` (RNF-REV-03). O estado inicial do SM-2 é `{"repetitions":0,"intervalDays":1,"easeFactor":2.5}`.
+Índices: único `ux_student_flashcard_student_id_flashcard_id` em `(student_id, flashcard_id)` (RN-REV-12; o segundo cartão chega à Application como `UniqueConstraintViolationException`) e `ix_student_flashcard_student_id_next_review_at` em `(student_id, next_review_at)` (RNF-REV-03), além de `ix_student_flashcard_flashcard_id` e `ix_student_flashcard_origin_attempt_id`. Todas as chaves estrangeiras são `ON DELETE RESTRICT`; `algorithm` é `varchar(20)`. O `jsonb` recusa um estado que não é JSON e **normaliza o texto** (ordem das chaves, espaços): o que volta do banco é o mesmo JSON, não necessariamente o mesmo texto, e o adapter o lê igual. O estado inicial do SM-2 é `{"repetitions":0,"intervalDays":1,"easeFactor":2.5}`.
 
 ### 8.3 Catálogo de erros
 
@@ -422,7 +422,7 @@ erDiagram
 | RF-REV-01, RN-REV-04 (criação), RN-REV-12 (construção) | Domain: #22 (PR #76) | `StudentFlashcardTests` |
 | RN-REV-01, RN-REV-08, RN-REV-09 (`IsDue`), RN-REV-03 (nota inválida) | Domain: #23 (PR #76) | `StudentFlashcardReviewTests` |
 | RN-REV-02, RN-REV-14, RNF-REV-01 | ADR-003 (PR #76); Domain | `Sm2SchedulerTests`; `StudentFlashcardReviewTests` |
-| RF-REV-06, RN-REV-12, RN-REV-15, RNF-REV-04 | #84 (a fazer) | Integração: cartão vai e volta; o estado `jsonb` do SM-2 é lido de volta igual; as restrições são recusadas pelo banco |
+| RF-REV-06, RN-REV-12, RN-REV-15, RNF-REV-04 | #84: `StudentFlashcardConfiguration`, `StudentFlashcardRepository`, migration `AddProgress` (`StudentFlashcardRepositoryTests`) | Integração: cartão vai e volta; o estado `jsonb` do SM-2 é lido de volta igual; as restrições são recusadas pelo banco |
 | RF-REV-02, RN-REV-09, RN-REV-10, RF-REV-05, FA-REV-01, RNF-REV-03 | #89 (a fazer) | Integração da leitura (só vencidos, ordem) |
 | RF-REV-03, RF-REV-07, RN-REV-11, RN-REV-13, RN-REV-16, RN-REV-18, FA-REV-02 a FA-REV-08 | #89 (a fazer) | Unidade do caso de uso; funcionais por HTTP (revisar reagenda; cartão de outro aluno dá `404`; nota inválida dá `400`) |
 | RN-REV-17, PEND-REV-01 | ADR a escrever antes da #88 | — |

@@ -11,6 +11,9 @@ public partial class DomainErrorCatalogTests
     [
         "answer.alternative.notInExercise",
         "exercise.lesson.required",
+        "exercise.code.required",
+        "exercise.code.invalid",
+        "exercise.alternative.removed",
         "exercise.statement.required",
         "exercise.difficulty.invalid",
         "exercise.alternative.tooFew",
@@ -24,6 +27,8 @@ public partial class DomainErrorCatalogTests
         "student.group.invalid",
         "student.topic.locked",
         "flashcard.topic.required",
+        "flashcard.code.required",
+        "flashcard.code.invalid",
         "flashcard.question.required",
         "flashcard.answer.required",
         "flashcard.errorType.required",

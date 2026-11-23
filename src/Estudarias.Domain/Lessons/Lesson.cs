@@ -9,8 +9,8 @@ public sealed class Lesson : BaseEntity, IAggregateRoot
 
     public Guid TopicId { get; }
     public int Order { get; }
-    public string Title { get; }
-    public string Content { get; }
+    public string Title { get; private set; }
+    public string Content { get; private set; }
 
     private Lesson(Guid topicId, int order, string title, string content)
     {
@@ -32,6 +32,16 @@ public sealed class Lesson : BaseEntity, IAggregateRoot
             throw new DomainValidationException(LessonErrors.OrderInvalid, "Lesson order must start at 1.");
         }
 
+        var (validTitle, validContent) = ValidContent(title, content);
+
+        return new Lesson(topicId, order, validTitle, validContent);
+    }
+
+    /// <summary>Troca o título e o conteúdo, com as regras da criação. O tópico e a ordem são a chave natural e não mudam.</summary>
+    public void Revise(string title, string content) => (Title, Content) = ValidContent(title, content);
+
+    private static (string Title, string Content) ValidContent(string title, string content)
+    {
         if (string.IsNullOrWhiteSpace(title))
         {
             throw new DomainValidationException(LessonErrors.TitleRequired, "Lesson title is required.");
@@ -49,6 +59,6 @@ public sealed class Lesson : BaseEntity, IAggregateRoot
             throw new DomainValidationException(LessonErrors.ContentRequired, "Lesson content is required.");
         }
 
-        return new Lesson(topicId, order, trimmedTitle, content);
+        return (trimmedTitle, content);
     }
 }

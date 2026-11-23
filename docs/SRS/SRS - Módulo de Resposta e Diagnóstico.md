@@ -1,6 +1,6 @@
 # SRS — Módulo de Resposta e Diagnóstico (Responder Exercício, Diagnosticar o Erro e Retorno por Grupo)
 
-**Status:** Rascunho. As regras puras já estão no Domain e na `main`: a tentativa (`Attempt`, #30, PR #68) e o diagnóstico da resposta com o retorno por grupo experimental (#72, PR #80). Faltam a persistência da tentativa (#84) e o caso de uso e o endpoint `POST /exercises/{id}/attempts` (#88). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a tentativa (`Attempt`, #30, PR #68) e o diagnóstico da resposta com o retorno por grupo experimental (#72, PR #80). A persistência da tentativa (#84) está implementada (tabela `attempt`, Seção 8.2). Faltam o caso de uso e o endpoint `POST /exercises/{id}/attempts` (#88). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 **Pendências de decisão:** PEND-RSP-01 e PEND-RSP-02 (Seção 7.5). A PEND-RSP-01 precisa ser decidida **antes** da implementação da #88.
 
@@ -378,7 +378,9 @@ erDiagram
 | `response_seconds` | integer, nulo | Opcional; `CHECK (response_seconds >= 0)`, também garantido pelo Domain (RN-RSP-03) |
 | `answered_at` | timestamptz NOT NULL | Instante da resposta, pelo relógio injetado |
 
-Índice `(student_id, exercise_id)`: serve à nota (últimas 10 do tópico), ao histórico e ao estado da lição. **Sem** unicidade (RN-RSP-04). O cartão do aluno (`student_flashcard`) é descrito no módulo Revisão Espaçada; `origin_attempt_id` aponta para cá.
+Restrições como estão na migration `AddProgress`: `ck_attempt_response_seconds`: `CHECK (response_seconds IS NULL OR response_seconds >= 0)`; todas as chaves estrangeiras `ON DELETE RESTRICT` (um exercício já respondido não pode ser apagado, nem as alternativas dele); índices `ix_attempt_exercise_id` e `ix_attempt_alternative_id`. A chave estrangeira para `alternative` (`fk_attempt_alternative_alternative_id`) é escrita à mão na migration: a alternativa é parte do agregado `Exercise` (*owned*), e o EF Core não deixa outra entidade apontar para uma entidade *owned*. Por não estar no modelo, ela também não entra no snapshot. A escrita é pelo `IAttemptRepository` (só `Add`: uma tentativa nunca muda); a nota, o histórico e o estado da lição são leituras pelo `IApplicationDbContext.Attempts` (ADR-002).
+
+Índice `ix_attempt_student_id_exercise_id` em `(student_id, exercise_id)`: serve à nota (últimas 10 do tópico), ao histórico e ao estado da lição. **Sem** unicidade (RN-RSP-04). O cartão do aluno (`student_flashcard`) é descrito no módulo Revisão Espaçada; `origin_attempt_id` aponta para cá.
 
 ### 8.3 Catálogo de erros
 
@@ -401,7 +403,7 @@ erDiagram
 | RF-RSP-04, RN-RSP-03, RN-RSP-04 (construção) | Domain: #30 (PR #68) | `AttemptTests` |
 | RF-RSP-02, RN-RSP-02 | Domain: #72 (PR #80) | `AnswerDiagnosticianTests` |
 | RF-RSP-03, RN-RSP-05, RN-RSP-06, RN-RSP-07 | Domain: #72 (PR #80) | `AnswerDiagnosticianTests` |
-| Persistência da tentativa, RN-RSP-04, RN-RSP-03 (`CHECK`) | #84 (a fazer) | Integração: tentativa vai e volta; a restrição é recusada pelo banco |
+| Persistência da tentativa, RN-RSP-04, RN-RSP-03 (`CHECK`) | #84: `AttemptConfiguration`, `AttemptRepository`, migration `AddProgress` | `AttemptRepositoryTests`: tentativa vai e volta; várias tentativas no mesmo exercício; `CHECK` e chave estrangeira recusadas pelo banco; exercício respondido não pode ser apagado |
 | RF-RSP-01, RF-RSP-05, RF-RSP-06, RN-RSP-01, RN-RSP-08 a RN-RSP-13, FA-RSP-01 a FA-RSP-07 | #88 (a fazer) | Unidade do caso de uso: acerto, erro com e sem cartão novo, desbloqueio, tópico bloqueado, alternativa de outro exercício, os dois grupos |
 | RF-RSP-08, FA-RSP-08 a FA-RSP-11, RNF-RSP-05 | #88 (a fazer) | Funcionais por HTTP |
 | Ciclo completo (errar → cartão → acertar até dominar → dependente liberado), RNF-RSP-01, RNF-RSP-04 | #88 (a fazer) | Funcional por HTTP contra o PostgreSQL real, com a medição do tempo |
