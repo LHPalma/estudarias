@@ -2,7 +2,7 @@
 
 **Status:** Em implementação. As regras puras já estão no Domain e na `main`: a tentativa (`Attempt`, #30, PR #68) e o diagnóstico da resposta com o retorno por grupo experimental (#72, PR #80). A persistência da tentativa (#84) está implementada (tabela `attempt`, Seção 8.2). Faltam o caso de uso e o endpoint `POST /exercises/{id}/attempts` (#88). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
-**Pendências de decisão:** PEND-RSP-01 e PEND-RSP-02 (Seção 7.5). A PEND-RSP-01 precisa ser decidida **antes** da implementação da #88.
+**Decisões:** o cartão nos dois grupos está decidido (ADR-005, ex-PEND-RSP-01). Resta a PEND-RSP-02 (Seção 7.5).
 
 ---
 
@@ -228,9 +228,9 @@ Tentativa, progresso (domínio e desbloqueios) e cartão novo são gravados numa
 
 Nenhuma rota recebe id de aluno, e o `SubmitAttempt` usa o aluno do access token. Um aluno nunca responde em nome de outro, e o grupo experimental nunca vem da requisição.
 
-### RN-RSP-14: O cartão nos dois grupos (pendente)
+### RN-RSP-14: O cartão nos dois grupos
 
-**Proposta:** o cartão nasce para o aluno dos **dois** grupos. Ver PEND-RSP-01.
+O cartão nasce para o aluno dos **dois** grupos, com o mesmo agendamento (ADR-005). O experimento mede só o retorno imediato; o grupo controle vê o diagnóstico ao **revisar**, o que é uma limitação declarada da análise. O grupo só decide o `feedback` da resposta.
 
 ### RN-RSP-15: Resposta em até 2 segundos em 4G (RNF002)
 
@@ -250,7 +250,7 @@ O caso de uso lê só o necessário (aluno com progresso, exercício com alterna
 
 ### FA-RSP-03: Erro no grupo controle
 
-`feedback.kind: incorrect`, com `errorType: null`. O cartão segue a decisão da PEND-RSP-01.
+`feedback.kind: incorrect`, com `errorType: null`. O cartão é criado como no grupo diagnóstico (RN-RSP-14, ADR-005).
 
 ### FA-RSP-04: Erro de um tipo de erro que o aluno já cometeu
 
@@ -294,7 +294,7 @@ Responder em até 2 segundos em 4G (RNF002 do documento do projeto). A nota lê 
 
 ### RNF-RSP-02: Integridade do experimento
 
-O grupo experimental nunca vem da requisição, o retorno tem a mesma estrutura nos dois grupos e nenhuma outra parte do ciclo muda com o grupo, a não ser o que a PEND-RSP-01 decidir. A análise depende disso (RN-RSP-05, RN-RSP-13).
+O grupo experimental nunca vem da requisição, o retorno tem a mesma estrutura nos dois grupos e nenhuma outra parte do ciclo muda com o grupo (o cartão nasce nos dois, ADR-005). A análise depende disso (RN-RSP-05, RN-RSP-13).
 
 ### RNF-RSP-03: Consistência
 
@@ -337,9 +337,10 @@ Sem variável nova. O algoritmo de revisão dos cartões novos é o registrado n
 
 ### 7.5 Decisões pendentes
 
+A PEND-RSP-01 (o cartão no grupo controle) foi decidida: o cartão nasce para os dois grupos (ADR-005, RN-RSP-14).
+
 | Id | Pendência | Proposta atual |
 |---|---|---|
-| **PEND-RSP-01** | **O flashcard no grupo controle.** O cartão nasce do tipo de erro, e a pergunta dele revela o diagnóstico ("Por que 1/2 + 1/3 não é 2/5?"). Se o controle recebe o cartão, vê indiretamente o diagnóstico que o experimento lhe nega; se não recebe, os grupos diferem em **duas** coisas (retorno e revisão). | **Criar o cartão nos dois grupos**, para o experimento medir só o retorno imediato, e registrar a decisão num ADR. **Decidir antes da implementação da #88.** Este SRS escreve o requisito pela proposta (RN-RSP-14). |
 | **PEND-RSP-02** | **Tipo de erro sem flashcard no conteúdo.** Nada no modelo obriga a existir um flashcard gerado para cada tipo de erro. Sem ele, não há cartão a criar. | O validador do seed (#85) deveria exigir um flashcard gerado por erro para cada tipo de erro (módulo Conteúdo, RF-CNT-07); se não exigir, a resposta traz `flashcard: null` nesse caso. A confirmar na #85 e na #88. |
 
 ---
@@ -408,7 +409,7 @@ Restrições como estão na migration `AddProgress`: `ck_attempt_response_second
 | RF-RSP-08, FA-RSP-08 a FA-RSP-11, RNF-RSP-05 | #88 (a fazer) | Funcionais por HTTP |
 | Ciclo completo (errar → cartão → acertar até dominar → dependente liberado), RNF-RSP-01, RNF-RSP-04 | #88 (a fazer) | Funcional por HTTP contra o PostgreSQL real, com a medição do tempo |
 | RF-RSP-07 | #91 (a fazer) | Funcional: `lesson.status` na resposta |
-| RN-RSP-14, PEND-RSP-01 | ADR a escrever antes da #88 | — |
+| RN-RSP-14 | ADR-005 | — |
 | Contrato do endpoint | #82 (PR #90) | Revisão do `docs/api.md` |
 
 ---

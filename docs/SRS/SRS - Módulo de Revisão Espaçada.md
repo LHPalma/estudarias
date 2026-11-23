@@ -2,7 +2,7 @@
 
 **Status:** Em implementação. O núcleo já está no Domain e na `main` (#20, PR #76): o port `IReviewScheduler`, o SM-2 (`Sm2Schedule` e `Sm2Scheduler`), o agregado `StudentFlashcard` com a criação e a revisão, e o ADR-003. A persistência do cartão do aluno (#84) está implementada (tabela `student_flashcard`, Seção 8.2). Faltam os endpoints `GET /reviews/due` e `POST /reviews/{id}`, com o caso de uso `ReviewFlashcard` (#89). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
-**Pendências de decisão:** PEND-REV-01 e PEND-REV-02 (Seção 7.5).
+**Decisões:** o cartão nos dois grupos está decidido (ADR-005, ex-PEND-REV-01). Resta a PEND-REV-02 (Seção 7.5).
 
 ---
 
@@ -252,9 +252,9 @@ Não há histórico de revisões: cada revisão sobrescreve o estado e a data. S
 
 `ReviewFlashcard` carrega, revisa e grava na `IUnitOfWork`, que persiste o estado novo e a próxima revisão juntos. Nenhum efeito além do cartão: a revisão **não** altera a nota do tópico nem o desbloqueio (RN-REV-18).
 
-### RN-REV-17: O cartão nos dois grupos experimentais (pendente)
+### RN-REV-17: O cartão nos dois grupos experimentais
 
-**Proposta:** os dois grupos revisam os cartões do mesmo jeito, e o cartão existe para os dois. Ver PEND-REV-01 (e PEND-RSP-01 no módulo Resposta e Diagnóstico).
+Os dois grupos revisam os cartões do mesmo jeito, e o cartão existe para os dois (ADR-005, RN-RSP-14 no módulo Resposta e Diagnóstico).
 
 ### RN-REV-18: A revisão do cartão não muda a nota
 
@@ -357,7 +357,6 @@ Sem variável nova. O algoritmo ativo para cartões novos é definido no composi
 
 | Id | Pendência | Proposta atual |
 |---|---|---|
-| **PEND-REV-01** | **O cartão no grupo controle** (a mesma de PEND-RSP-01): a pergunta do cartão revela o diagnóstico. | Criar o cartão nos dois grupos e registrar a decisão num ADR, antes da #88. |
 | **PEND-REV-02** | **Revisões simultâneas do mesmo cartão.** O contrato e o Domain não dizem o que acontece quando duas revisões chegam juntas. | Decidir na #89 entre um token de concorrência (a segunda recebe erro) e aceitar a última gravação. O risco real é pequeno (um aluno, um aparelho), mas o app reenvia a requisição ao renovar a sessão. |
 
 ---
@@ -425,7 +424,7 @@ erDiagram
 | RF-REV-06, RN-REV-12, RN-REV-15, RNF-REV-04 | #84: `StudentFlashcardConfiguration`, `StudentFlashcardRepository`, migration `AddProgress` (`StudentFlashcardRepositoryTests`) | Integração: cartão vai e volta; o estado `jsonb` do SM-2 é lido de volta igual; as restrições são recusadas pelo banco |
 | RF-REV-02, RN-REV-09, RN-REV-10, RF-REV-05, FA-REV-01, RNF-REV-03 | #89 (a fazer) | Integração da leitura (só vencidos, ordem) |
 | RF-REV-03, RF-REV-07, RN-REV-11, RN-REV-13, RN-REV-16, RN-REV-18, FA-REV-02 a FA-REV-08 | #89 (a fazer) | Unidade do caso de uso; funcionais por HTTP (revisar reagenda; cartão de outro aluno dá `404`; nota inválida dá `400`) |
-| RN-REV-17, PEND-REV-01 | ADR a escrever antes da #88 | — |
+| RN-REV-17 | ADR-005 | — |
 | Contrato dos endpoints | #82 (PR #90) | Revisão do `docs/api.md` |
 
 ---

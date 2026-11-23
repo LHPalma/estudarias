@@ -44,7 +44,7 @@ Cada requisito tem um id estável, que o código e o histórico citam:
 | Fluxo alternativo ou de exceção | `FA-<módulo>-NN` | `FA-RSP-07` |
 | Requisito não funcional | `RNF-<módulo>-NN` | `RNF-CNT-02` |
 | Premissa | `P-<módulo>-NN` | `P-TRL-01` |
-| Decisão pendente | `PEND-<módulo>-NN` | `PEND-RSP-01` |
+| Decisão pendente | `PEND-<módulo>-NN` | `PEND-RSP-02` |
 
 O SRS de Autenticação é anterior ao prefixo e usa `RF-01`, `RN-01` e assim por diante. Esses ids ficam como estão, porque os testes dele já os citam; um id sem prefixo é sempre da Autenticação.
 
@@ -88,7 +88,6 @@ Uma decisão em aberto não trava o SRS: ele escreve o requisito pela **proposta
 
 | Id | Pendência | Onde | Decidir antes de |
 |---|---|---|---|
-| `PEND-RSP-01` (e `PEND-REV-01`) | O flashcard no grupo controle: proposta de criar o cartão nos **dois** grupos, com um ADR | [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md), [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | #88 |
 | `PEND-RSP-02` | Tipo de erro sem flashcard no conteúdo | [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md) | #85 e #88 |
 | `PEND-TRL-01` | O que conta como `attemptCount` no domínio: todas as tentativas no tópico ou só a janela de 10 | [Trilha e Progresso](SRS%20-%20M%C3%B3dulo%20de%20Trilha%20e%20Progresso.md) | #87 e #88 |
 | `PEND-REV-02` | Revisões simultâneas do mesmo cartão | [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | #89 |
