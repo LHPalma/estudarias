@@ -1,0 +1,183 @@
+# Equações do 1º grau: o tópico depois de Frações, com os erros típicos de quem está aprendendo a isolar o x.
+# Formato e regras: docs/SRS/SRS - Módulo de Conteúdo.md (RF-CNT-06 e RF-CNT-07). {a/b} no texto é uma fração, que o app desenha.
+# Os códigos são a chave natural de cada item: mudar um código cria um item novo, e o antigo continua no banco. Uma alternativa não
+# pode ser removida de um exercício já carregado (as tentativas apontam para ela): para trocá-las, crie um exercício com código novo.
+
+slug: equacoes-1-grau
+name: Equações do 1º grau
+prerequisites:
+  - fracoes
+
+errorTypes:
+  - code: operacao_inversa
+    name: Usa a mesma operação em vez da inversa
+    description: Para isolar o x, repete a operação da equação em vez de desfazê-la, como somar 3 quando precisava subtrair 3.
+    feedback: Para isolar o x, desfaça a operação com a operação inversa. A soma se desfaz com a subtração, a subtração com a soma, a multiplicação com a divisão e a divisão com a multiplicação.
+  - code: aplica_so_de_um_lado
+    name: Mexe só num lado da igualdade
+    description: Tira o número de um lado da equação e deixa o outro lado como estava.
+    feedback: Uma equação é uma balança. O que você faz de um lado, precisa fazer do outro, senão a igualdade deixa de valer.
+  - code: le_o_coeficiente_como_soma
+    name: Lê o 2x como 2 + x
+    description: Trata o número colado ao x como se estivesse somado a ele, e subtrai em vez de dividir.
+    feedback: Um número colado ao x quer dizer vezes. 2x é 2 vezes x, e não 2 + x. Para desfazer a multiplicação, divida os dois lados.
+  - code: desfaz_na_ordem_errada
+    name: Desfaz as operações na ordem errada
+    description: Numa equação com duas operações, divide ou multiplica antes de desfazer a soma ou a subtração.
+    feedback: Desfaça primeiro a soma ou a subtração, e só depois a multiplicação ou a divisão. Se for dividir antes, divida todos os termos dos dois lados.
+  - code: para_antes_de_isolar_o_x
+    name: Para antes de isolar o x
+    description: Desfaz só a primeira operação e responde com o valor de 2x, como se fosse o valor de x.
+    feedback: Falta uma operação. O x precisa ficar sozinho de um lado, e o que você achou ainda é o valor do x multiplicado.
+
+lessons:
+  - order: 1
+    title: Equações com uma operação
+    content: |
+      Resolver uma equação é descobrir o valor de x que torna a igualdade verdadeira.
+      Para isolar o x, desfaça a operação com a operação inversa, nos dois lados da igualdade. A soma se desfaz com a subtração, e a subtração com a soma.
+      x + 3 = 7 → x = 7 − 3 → x = 4
+      x − 5 = 2 → x = 2 + 5 → x = 7
+      Para conferir, troque o x pelo valor que achou: 4 + 3 = 7.
+    exercises:
+      - code: x_mais_tres_igual_a_sete
+        statement: Quanto vale x em x + 3 = 7?
+        difficulty: easy
+        alternatives:
+          - text: "4"
+            correct: true
+          - text: "10"
+            errorType: operacao_inversa
+          - text: "7"
+            errorType: aplica_so_de_um_lado
+      - code: x_menos_cinco_igual_a_dois
+        statement: Quanto vale x em x − 5 = 2?
+        difficulty: easy
+        alternatives:
+          - text: "7"
+            correct: true
+          - text: "−3"
+            errorType: operacao_inversa
+          - text: "2"
+            errorType: aplica_so_de_um_lado
+      - code: doze_igual_a_x_mais_nove
+        statement: Quanto vale x em 12 = x + 9?
+        difficulty: medium
+        alternatives:
+          - text: "3"
+            correct: true
+          - text: "21"
+            errorType: operacao_inversa
+          - text: "12"
+            errorType: aplica_so_de_um_lado
+
+  - order: 2
+    title: Equações com multiplicação e divisão
+    content: |
+      Quando o x está multiplicado por um número, desfaça com a divisão. Quando está dividido, desfaça com a multiplicação. Sempre nos dois lados.
+      Um número colado ao x quer dizer vezes: 2x é 2 vezes x, e não 2 + x.
+      2x = 10 → x = 10 ÷ 2 → x = 5
+      x ÷ 3 = 4 → x = 4 × 3 → x = 12
+    exercises:
+      - code: dois_x_igual_a_dez
+        statement: Quanto vale x em 2x = 10?
+        difficulty: easy
+        alternatives:
+          - text: "5"
+            correct: true
+          - text: "20"
+            errorType: operacao_inversa
+          - text: "8"
+            errorType: le_o_coeficiente_como_soma
+          - text: "10"
+            errorType: aplica_so_de_um_lado
+      - code: x_dividido_por_tres
+        statement: Quanto vale x em x ÷ 3 = 4?
+        difficulty: medium
+        alternatives:
+          - text: "12"
+            correct: true
+          - text: "{4/3}"
+            errorType: operacao_inversa
+          - text: "4"
+            errorType: aplica_so_de_um_lado
+      - code: seis_x_igual_a_quarenta_e_dois
+        statement: Quanto vale x em 6x = 42?
+        difficulty: medium
+        alternatives:
+          - text: "7"
+            correct: true
+          - text: "252"
+            errorType: operacao_inversa
+          - text: "36"
+            errorType: le_o_coeficiente_como_soma
+          - text: "42"
+            errorType: aplica_so_de_um_lado
+
+  - order: 3
+    title: Equações com duas operações
+    content: |
+      Quando a equação tem duas operações, desfaça primeiro a soma ou a subtração, e só depois a multiplicação ou a divisão. Sempre nos dois lados.
+      2x + 3 = 11 → 2x = 11 − 3 → 2x = 8 → x = 8 ÷ 2 → x = 4
+      3x − 4 = 11 → 3x = 11 + 4 → 3x = 15 → x = 15 ÷ 3 → x = 5
+      O valor de 2x ainda não é o valor de x: falta a última operação.
+    exercises:
+      - code: dois_x_mais_tres_igual_a_onze
+        statement: Quanto vale x em 2x + 3 = 11?
+        difficulty: medium
+        alternatives:
+          - text: "4"
+            correct: true
+          - text: "7"
+            errorType: operacao_inversa
+          - text: "2,5"
+            errorType: desfaz_na_ordem_errada
+          - text: "8"
+            errorType: para_antes_de_isolar_o_x
+      - code: tres_x_menos_quatro_igual_a_onze
+        statement: Quanto vale x em 3x − 4 = 11?
+        difficulty: medium
+        alternatives:
+          - text: "5"
+            correct: true
+          - text: "{7/3}"
+            errorType: operacao_inversa
+          - text: "15"
+            errorType: para_antes_de_isolar_o_x
+      - code: cinco_x_mais_dez_igual_a_quarenta
+        statement: Quanto vale x em 5x + 10 = 40?
+        difficulty: hard
+        alternatives:
+          - text: "6"
+            correct: true
+          - text: "10"
+            errorType: operacao_inversa
+          - text: "30"
+            errorType: para_antes_de_isolar_o_x
+          - text: "−2"
+            errorType: desfaz_na_ordem_errada
+
+flashcards:
+  - code: por_que_a_operacao_inversa
+    errorType: operacao_inversa
+    question: Por que x + 3 = 7 não dá x = 10?
+    answer: Porque, para isolar o x, é preciso desfazer o + 3 com a operação inversa, a subtração. x = 7 − 3 = 4. Somar 3 de novo afasta o x do valor certo.
+  - code: o_que_faz_de_um_lado_faz_do_outro
+    errorType: aplica_so_de_um_lado
+    question: Em x + 3 = 7, por que a resposta não é 7?
+    answer: Porque tirar o 3 só de um lado muda a igualdade. O que se faz de um lado, faz-se do outro. x + 3 − 3 = 7 − 3, e então x = 4.
+  - code: dois_x_e_dois_vezes_x
+    errorType: le_o_coeficiente_como_soma
+    question: Em 2x = 10, por que x não é 8?
+    answer: Porque 2x quer dizer 2 vezes x, e não 2 + x. Para desfazer a multiplicação, divida os dois lados por 2. x = 10 ÷ 2 = 5.
+  - code: primeiro_a_soma_depois_a_multiplicacao
+    errorType: desfaz_na_ordem_errada
+    question: Em 2x + 3 = 11, por que não se divide o 11 por 2 logo de início?
+    answer: Porque o 3 está somado ao 2x inteiro. Desfaça primeiro a soma, 11 − 3 = 8, e depois a multiplicação, 8 ÷ 2 = 4. Dividir antes só vale se todos os termos dos dois lados forem divididos.
+  - code: o_x_ainda_nao_esta_sozinho
+    errorType: para_antes_de_isolar_o_x
+    question: Em 2x + 3 = 11, por que 8 não é a resposta?
+    answer: Porque 8 é o valor de 2x, e a pergunta é sobre o x. Falta desfazer a multiplicação. x = 8 ÷ 2 = 4.
+  - code: como_conferir_a_resposta
+    question: Como conferir a resposta de uma equação?
+    answer: Troque o x pelo valor que você achou e veja se a igualdade fica verdadeira. Em x + 3 = 7, com x = 4, dá 4 + 3 = 7.
