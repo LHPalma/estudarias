@@ -32,6 +32,14 @@ public abstract class ContentEndpointsTests(PostgresFixture postgres) : AuthEndp
     protected async Task<JsonElement> GetJsonAsync(JsonElement session, string path) =>
         await JsonAsync(await GetWithTokenAsync(path, AccessTokenOf(session)));
 
+    /// <summary>Um POST com o access token (o que um cliente logado manda), com o corpo em JSON.</summary>
+    protected Task<HttpResponseMessage> PostWithTokenAsync(string path, object? body, string accessToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = System.Net.Http.Json.JsonContent.Create(body) };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        return Client.SendAsync(request, Cancel);
+    }
+
     protected async Task<JsonElement> TrailAsync(JsonElement session) => await GetJsonAsync(session, "/trail");
 
     /// <summary>O item da trilha com o slug, que é estável entre cargas (o id muda de banco para banco).</summary>

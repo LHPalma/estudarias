@@ -110,7 +110,7 @@ public class LessonEndpointTests(PostgresFixture postgres) : ContentEndpointsTes
         }
     }
 
-    [Fact(DisplayName = "A lição traz o link self, com a URL absoluta, e o link topic; os exercícios ainda sem o link answer")]
+    [Fact(DisplayName = "A lição traz o link self, com a URL absoluta, e o link topic; cada exercício traz o link answer, que é um POST")]
     public async Task Lesson_LinksToItselfAndItsTopic()
     {
         // Arrange
@@ -124,7 +124,12 @@ public class LessonEndpointTests(PostgresFixture postgres) : ContentEndpointsTes
         Assert.Equal($"http://localhost/lessons/{lessonId}", RelOf(lesson, "self"));
         Assert.Equal($"http://localhost/topics/{lesson.GetProperty("topicId").GetGuid()}", RelOf(lesson, "topic"));
         Assert.Equal(HttpStatusCode.OK, (await GetWithTokenAsync(RelOf(lesson, "topic"), AccessTokenOf(session))).StatusCode);
-        Assert.All(lesson.GetProperty("exercises").EnumerateArray(), exercise => Assert.Equal(0, exercise.GetProperty("links").GetArrayLength()));
+        Assert.All(lesson.GetProperty("exercises").EnumerateArray(), exercise =>
+        {
+            var link = Assert.Single(exercise.GetProperty("links").EnumerateArray());
+            Assert.Equal(("answer", "POST"), (link.GetProperty("rel").GetString(), link.GetProperty("method").GetString()));
+            Assert.Equal($"http://localhost/exercises/{exercise.GetProperty("id").GetGuid()}/attempts", link.GetProperty("href").GetString());
+        });
     }
 
     [Fact(DisplayName = "A lição de um tópico bloqueado responde 403 com student.topic.locked, sem revelar o conteúdo")]
