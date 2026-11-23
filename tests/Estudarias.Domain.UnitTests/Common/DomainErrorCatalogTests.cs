@@ -11,6 +11,7 @@ public partial class DomainErrorCatalogTests
     [
         "answer.alternative.notInExercise",
         "exercise.lesson.required",
+        "exercise.position.invalid",
         "exercise.code.required",
         "exercise.code.invalid",
         "exercise.alternative.removed",

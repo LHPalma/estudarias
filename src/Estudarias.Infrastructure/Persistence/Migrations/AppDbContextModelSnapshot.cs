@@ -128,6 +128,10 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("lesson_id");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
                     b.Property<string>("Statement")
                         .IsRequired()
                         .HasColumnType("text")
@@ -142,6 +146,8 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                     b.ToTable("exercise", null, t =>
                         {
                             t.HasCheckConstraint("ck_exercise_difficulty", "difficulty IN ('easy', 'medium', 'hard')");
+
+                            t.HasCheckConstraint("ck_exercise_position", "position >= 1");
                         });
                 });
 
@@ -496,6 +502,10 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                                 .HasColumnType("boolean")
                                 .HasColumnName("is_correct");
 
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
+
                             b1.Property<string>("Text")
                                 .IsRequired()
                                 .HasColumnType("text")
@@ -515,6 +525,8 @@ namespace Estudarias.Infrastructure.Persistence.Migrations
                             b1.ToTable("alternative", null, t =>
                                 {
                                     t.HasCheckConstraint("ck_alternative_error_type", "(is_correct AND error_type_id IS NULL) OR (NOT is_correct AND error_type_id IS NOT NULL)");
+
+                                    t.HasCheckConstraint("ck_alternative_position", "position >= 1");
                                 });
 
                             b1.HasOne("Estudarias.Domain.ErrorTypes.ErrorType", null)

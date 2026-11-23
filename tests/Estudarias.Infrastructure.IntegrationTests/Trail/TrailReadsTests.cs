@@ -40,7 +40,7 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         var lesson = Lesson.Create(topicId, 9, "Lição de apoio", "Conteúdo.");
         var exercises = difficulties
             .Select((difficulty, index) => Exercise.Create(
-                lesson.Id,
+                lesson.Id, index + 1,
                 $"apoio_{lesson.Id:N}_{index}",
                 $"Pergunta {index}",
                 difficulty,

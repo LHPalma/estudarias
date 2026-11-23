@@ -30,7 +30,7 @@ public class AnswerDiagnosticianTests
         _wrongSum = Alternative.Wrong("2/5", _sumsAcross.Id);
         _wrongSimplify = Alternative.Wrong("10/12", _forgetsToSimplify.Id);
         _exercise = Exercise.Create(
-            Guid.CreateVersion7(), "soma_de_meios_e_tercos", "Quanto é 1/2 + 1/3?", Difficulty.Easy, [_correct, _wrongSum, _wrongSimplify]);
+            Guid.CreateVersion7(), 1, "soma_de_meios_e_tercos", "Quanto é 1/2 + 1/3?", Difficulty.Easy, [_correct, _wrongSum, _wrongSimplify]);
     }
 
     [Fact(DisplayName = "A alternativa correta dá acerto, sem tipo de erro")]
@@ -60,7 +60,7 @@ public class AnswerDiagnosticianTests
     {
         // Arrange
         var other = Exercise.Create(
-            Guid.CreateVersion7(),
+            Guid.CreateVersion7(), 1,
             "soma_de_quartos",
             "Quanto é 1/4 + 1/4?",
             Difficulty.Easy,

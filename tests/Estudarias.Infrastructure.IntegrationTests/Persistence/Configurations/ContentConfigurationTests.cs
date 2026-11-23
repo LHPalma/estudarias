@@ -135,7 +135,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
         // Arrange
         var content = await SeedContentAsync();
         var exercise = Exercise.Create(
-            content.Lesson.Id, "soma_de_quartos", "Quanto é 1/4 + 1/4?", difficulty, [Alternative.Correct("1/2"), Alternative.Wrong("2/8", content.ErrorType.Id)]);
+            content.Lesson.Id, 1, "soma_de_quartos", "Quanto é 1/4 + 1/4?", difficulty, [Alternative.Correct("1/2"), Alternative.Wrong("2/8", content.ErrorType.Id)]);
         await WriteAsync(db => db.Exercises.Add(exercise));
 
         // Act
@@ -296,9 +296,50 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
 
         // Act & Assert
         await AssertRejectedAsync(
-            $"INSERT INTO exercise (id, lesson_id, statement, difficulty) VALUES ('{Guid.CreateVersion7()}', '{content.Lesson.Id}', 'Outro', 'facil')",
+            $"INSERT INTO exercise (id, lesson_id, position, statement, difficulty) VALUES ('{Guid.CreateVersion7()}', '{content.Lesson.Id}', 2, 'Outro', 'facil')",
             PostgresErrorCodes.CheckViolation,
             "ck_exercise_difficulty");
+    }
+
+    [Fact(DisplayName = "O banco recusa um exercício com posição menor que 1")]
+    public async Task Exercise_WithAPositionBelowOne_IsRejected()
+    {
+        // Arrange
+        var content = await SeedContentAsync();
+
+        // Act & Assert
+        await AssertRejectedAsync(
+            $"INSERT INTO exercise (id, lesson_id, position, statement, difficulty) VALUES ('{Guid.CreateVersion7()}', '{content.Lesson.Id}', 0, 'Outro', 'easy')",
+            PostgresErrorCodes.CheckViolation,
+            "ck_exercise_position");
+    }
+
+    [Fact(DisplayName = "O banco recusa uma alternativa com posição menor que 1")]
+    public async Task Alternative_WithAPositionBelowOne_IsRejected()
+    {
+        // Arrange
+        var content = await SeedContentAsync();
+
+        // Act & Assert
+        await AssertRejectedAsync(
+            $"INSERT INTO alternative (id, exercise_id, position, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', 0, '1/6', false, '{content.ErrorType.Id}')",
+            PostgresErrorCodes.CheckViolation,
+            "ck_alternative_position");
+    }
+
+    [Fact(DisplayName = "A posição do exercício e a das alternativas voltam do banco como foram gravadas")]
+    public async Task Exercise_RoundTripsThePositions()
+    {
+        // Arrange
+        var content = await SeedContentAsync();
+
+        // Act
+        var exercise = (await ReadAsync(db => db.Exercises.ToListAsync(Cancel))).Single();
+
+        // Assert
+        Assert.Equal(1, exercise.Position);
+        Assert.Equal([1, 2], exercise.Alternatives.Select(alternative => alternative.Position));
+        Assert.Equal(content.Exercise.Alternatives.Select(alternative => alternative.Id), exercise.Alternatives.Select(alternative => alternative.Id));
     }
 
     [Fact(DisplayName = "O banco recusa uma segunda alternativa correta no mesmo exercício")]
@@ -309,7 +350,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
 
         // Act & Assert
         await AssertRejectedAsync(
-            $"INSERT INTO alternative (id, exercise_id, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', '10/12', true, NULL)",
+            $"INSERT INTO alternative (id, exercise_id, position, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', 3, '10/12', true, NULL)",
             PostgresErrorCodes.UniqueViolation,
             "ux_alternative_exercise_id_correct");
     }
@@ -322,7 +363,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
 
         // Act
         await ExecuteAsync(
-            $"INSERT INTO alternative (id, exercise_id, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', '1/6', false, '{content.ErrorType.Id}')");
+            $"INSERT INTO alternative (id, exercise_id, position, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', 3, '1/6', false, '{content.ErrorType.Id}')");
 
         // Assert
         Assert.Equal(2, await ScalarAsync<long>($"SELECT count(*) FROM alternative WHERE exercise_id = '{content.Exercise.Id}' AND NOT is_correct"));
@@ -340,7 +381,7 @@ public class ContentConfigurationTests(PostgresFixture postgres) : DatabaseTests
 
         // Act & Assert
         await AssertRejectedAsync(
-            $"INSERT INTO alternative (id, exercise_id, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', 'Outra', {correct}, {errorType})",
+            $"INSERT INTO alternative (id, exercise_id, position, text, is_correct, error_type_id) VALUES ('{Guid.CreateVersion7()}', '{content.Exercise.Id}', 3, 'Outra', {correct}, {errorType})",
             PostgresErrorCodes.CheckViolation,
             "ck_alternative_error_type");
     }
