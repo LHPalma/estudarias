@@ -1,6 +1,6 @@
 # SRS — Módulo de Trilha e Progresso (Trilha, Tópico, Lição, Nota, Domínio e Desbloqueio)
 
-**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). A persistência do progresso (#84) está implementada (tabela `student_topic`, Seção 8.2). Faltam os endpoints `GET /trail` (#86), `GET /topics/{id}` e `GET /lessons/{id}` (#87), a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). A persistência do progresso (#84) está implementada (tabela `student_topic`, Seção 8.2). O `GET /trail` está implementado (#86), com a liberação inicial, o CORS e o `self`; os links `topic` e `reviews` da trilha entram com os endpoints deles. Faltam `GET /topics/{id}` e `GET /lessons/{id}` (#87), a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
 **Pendência de decisão:** PEND-TRL-01 (Seção 7.5).
 
@@ -343,7 +343,7 @@ O teste da lição prova que o **JSON** não tem nenhum campo de correção, em 
 
 ### RNF-TRL-04: CORS para o Expo na web
 
-Em Development a API aceita requisições de qualquer origem, para o Expo na web; em produção, só as origens configuradas.
+Em Development a API aceita requisições de qualquer origem, para o Expo na web; nos demais ambientes, só as origens de `Cors:AllowedOrigins`, e uma origem mal escrita derruba a subida.
 
 ### RNF-TRL-05: Testabilidade
 
@@ -371,7 +371,7 @@ A liberação inicial é gravada numa unidade de trabalho só (`IUnitOfWork`); o
 
 ### 7.3 Configuração
 
-Sem variável nova. CORS em produção por origens configuradas (RNF-TRL-04).
+Uma variável nova: `Cors__AllowedOrigins__N`, as origens liberadas fora de Development (RNF-TRL-04).
 
 ### 7.4 Fora do escopo
 
@@ -444,12 +444,13 @@ Os demais erros de entrada e de sessão seguem o contrato (`docs/api.md`): `401`
 | RF-TRL-06, RN-TRL-04 a RN-TRL-07 | Domain: #71 (PR #77) | `TopicMasteryTests` |
 | Progresso por tópico no aluno (`Unlock`, `MarkMastered`, `StatusOf`), RN-TRL-05 | Domain: #14 (PR #15) | `StudentTests` |
 | RF-TRL-10 | #84: `StudentConfiguration` (coleção owned em `student_topic`), `StudentRepository.FindAsync`, migration `AddProgress` | Integração: o progresso volta com o aluno (desbloqueio e domínio com as datas) |
-| RF-TRL-01, RN-TRL-07, RN-TRL-10, FA-TRL-01, FA-TRL-02, RNF-TRL-06 | #86 (a fazer) | Unidade do caso de uso; funcional: aluno novo vê a raiz disponível |
-| RF-TRL-02, RF-TRL-09, RN-TRL-02, RN-TRL-16, FA-TRL-08 | #86 (a fazer) | Integração da leitura (status, nota, revisões vencidas); funcionais: `401` sem token, os links |
+| RF-TRL-01, RN-TRL-07, RN-TRL-10, FA-TRL-01, FA-TRL-02, RNF-TRL-06 | #86: `UnlockInitialTopicsHandler` (ao abrir a trilha) e o cadastro (`RegisterStudentHandler`), `ITopicRepository` | `UnlockInitialTopicsHandlerTests`, `RegisterStudentHandlerTests`; integração (`UnlockInitialTopicsFlowTests`, o cadastro com conteúdo); funcional: aluno novo e aluno anterior ao conteúdo veem a raiz disponível, abrir duas vezes não duplica |
+| RF-TRL-02, RF-TRL-09, RN-TRL-02, RN-TRL-16, FA-TRL-08 | #86: `TrailReads`, `TrailOrder`, `TrailController`, `TopicScore.Display`; links `self` da trilha e `trail` do perfil (`topic` e `reviews` com #87 e #89) | `TopicScoreTests`, `TrailOrderTests`; integração da leitura (`TrailReadsTests`: status, nota e janela de 10, revisões vencidas); funcionais (`TrailEndpointTests`): `401` sem token, os links |
 | RF-TRL-03, RF-TRL-04, RN-TRL-08, RN-TRL-11, FA-TRL-03 a FA-TRL-06, RNF-TRL-03 | #87 (a fazer) | Integração e funcionais: tópico disponível e bloqueado; lição sem gabarito (o JSON não tem campo de correção); `403` e `404` |
 | RF-TRL-07, RN-TRL-12 a RN-TRL-15, FA-TRL-10, FA-TRL-11 | #91 (a fazer) | `LessonProgressTests`; integração da consulta (acertos distintos por exercício) |
 | RF-TRL-08, RN-TRL-17, FA-TRL-07 | #92 (a fazer) | Funcionais: ordem, janela, `403` e `404` |
 | Contrato dos endpoints e links | #82 (PR #90) | Revisão do `docs/api.md` |
+| RNF-TRL-04 | #86: `CorsDependencyInjection` | `CorsSettingsTests`; funcionais (`CorsEndpointTests`): preflight sem token, Development e produção |
 
 ---
 

@@ -156,6 +156,18 @@ A chave é o segredo mais sensível do módulo: com ela se forja o token de qual
 (no máximo 15 minutos de sessão): os refresh tokens ficam no banco e continuam valendo, então o app renova a sessão sozinho e recebe um token
 assinado com a chave nova.
 
+## CORS
+
+O app aberto no navegador (o Expo na web) só chama a API se ela liberar a origem dele. Em Development qualquer origem é aceita, porque a
+porta do Expo web varia. Nos demais ambientes, só as origens da configuração; sem nenhuma, nenhuma origem é liberada. O app nativo não usa CORS.
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `Cors__AllowedOrigins__0`, `__1`... | nenhuma | as origens liberadas fora de Development, cada uma como o navegador a manda: esquema, host e porta, sem caminho nem barra no fim (`https://app.estudarias.com.br`) |
+
+Uma origem mal escrita (o curinga `*`, uma barra no fim, um caminho) derruba a subida: abrir a API para qualquer site tem de ser uma
+decisão visível, e uma barra a mais nunca bateria com o cabeçalho `Origin`. Não há credenciais em CORS: o app manda o token no `Authorization`.
+
 ## API de autenticação
 
 Os quatro endpoints são os únicos abertos da API (fora o `/health`). Todos recebem e devolvem JSON. O arquivo `src/Estudarias.Api/Estudarias.Api.http` tem uma chamada de cada.
@@ -201,14 +213,17 @@ Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `cod
 {
   "user": { "id": "0192f0c4-...", "email": "ana@example.com", "role": "Student" },
   "student": { "id": "0192f0c4-...", "name": "Ana Souza", "experimentalGroup": "Diagnostic" },
-  "links": [{ "href": "http://localhost:5007/me", "rel": "self", "method": "GET" }]
+  "links": [
+    { "href": "http://localhost:5007/me", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
 }
 ```
 
-- `links` são as ações a partir do recurso, com URL absoluta (veja o [ADR-004](docs/adr/0004-action-links.md)). Por enquanto só o `self`; o `trail` entra com o `GET /trail`.
+- `links` são as ações a partir do recurso, com URL absoluta (veja o [ADR-004](docs/adr/0004-action-links.md)): o `self` e o `trail`, que leva à trilha.
 - `user` é a conta de acesso, e `student` é o perfil de estudo ligado a ela, separados como no domínio. `student.id` é o `studentId` que o login devolve.
 - `experimentalGroup` é `Control` ou `Diagnostic` e diz ao app qual versão da experiência mostrar. O grupo é sorteado no cadastro e não muda.
-- O progresso por tópico ainda não faz parte da resposta (o `student_topic` não está mapeado).
+- O progresso por tópico não faz parte do perfil: sai na trilha (`GET /trail`).
 
 | Status | Quando | `code` |
 |---|---|---|
@@ -216,3 +231,30 @@ Um JSON malformado é `400` e um corpo que não é JSON é `415`, ambos sem `cod
 | `401` | token válido de uma conta que não existe mais ou foi desabilitada, sem distinção | `identity.session.invalid` |
 
 Ao receber `401` o app tenta `/auth/refresh`; se a renovação também falhar, volta para o login.
+
+## API da trilha
+
+`GET /trail` devolve a trilha do aluno logado: os tópicos em ordem de pré-requisito, com o status e a nota de cada um, e os totais que a tela
+mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha--get-trail).
+
+```json
+{
+  "masteryThreshold": 70,
+  "masteredTopics": 0,
+  "totalTopics": 2,
+  "dueReviews": 0,
+  "topics": [
+    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "links": [] },
+    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "links": [] }
+  ],
+  "links": [{ "href": "http://localhost:5007/trail", "rel": "self", "method": "GET" }]
+}
+```
+
+- `status` é `locked`, `available` ou `mastered`. `score` vai de 0 a 100, com uma casa e **arredondada para baixo** (69,95 sai `69.9`, nunca `70.0`), e é `null` enquanto o aluno não respondeu nada no tópico. A nota usa as 10 respostas mais recentes do aluno no tópico.
+- Os tópicos sem pré-requisito já vêm `available` para o aluno novo: o cadastro os libera, e abrir a trilha os libera de novo para quem se cadastrou antes de existir conteúdo (é a única escrita do endpoint, e é idempotente).
+- `dueReviews` conta os cartões do aluno cuja próxima revisão já chegou.
+- Os links `topic` (de cada item) e `reviews` entram com o `GET /topics/{id}` e o `GET /reviews/due`: um link só existe quando a rota dele existe.
+- É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed content/`); sem ele a trilha vem vazia.
+
+Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), e conta que não existe ou foi desabilitada (`identity.session.invalid`).

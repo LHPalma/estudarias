@@ -1,6 +1,6 @@
 # API REST — contrato da v1
 
-Este é o contrato que o app (Expo + TypeScript, repositório [`estudarias-mobile`](https://github.com/LHPalma/estudarias-mobile)) consome. Ele cobre as sete telas do protótipo: login, trilha, mapa, tópico, exercício, diagnóstico do erro e revisão. A sessão (`/auth/*`) e o perfil (`/me`) já estão no ar e são descritos no [README](../README.md#autenticação); o restante deste documento é o alvo dos próximos PRs, e cada seção diz em qual issue entra.
+Este é o contrato que o app (Expo + TypeScript, repositório [`estudarias-mobile`](https://github.com/LHPalma/estudarias-mobile)) consome. Ele cobre as sete telas do protótipo: login, trilha, mapa, tópico, exercício, diagnóstico do erro e revisão. A sessão (`/auth/*`), o perfil (`/me`) e a trilha (`GET /trail`) já estão no ar e são descritos no [README](../README.md#autenticação); o restante deste documento é o alvo dos próximos PRs, e cada seção diz em qual issue entra.
 
 Toda a regra fica no servidor. O app não calcula nota, desbloqueio nem agendamento: mostra o que a API devolve e decide quais botões aparecem pelos **links** de cada recurso.
 
@@ -95,6 +95,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
 - `status`: `locked`, `available` ou `mastered`. Um tópico liberado nunca volta a `locked`.
 - `score`: `null` enquanto o aluno não respondeu nada no tópico.
 - `dueReviews`: cartões com revisão vencida, para o aviso "N revisões para hoje".
+- **Links entregues na #86:** o `self` da trilha. O `topic` de cada item entra com o `GET /topics/{id}` (#87) e o `reviews` com o `GET /reviews/due` (#89): um link só existe quando a rota dele existe (ADR-004), então até lá o `links` de cada item vem vazio.
+- A nota usa as 10 respostas mais recentes do aluno no tópico. A trilha de um aluno que ainda não tem a raiz liberada a libera antes de responder (idempotente).
 
 ## Tópico — `GET /topics/{topicId}`
 
@@ -261,5 +263,5 @@ Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente.
 
 ## Desenvolvimento do app
 
-- Em Development a API aceita requisições de qualquer origem (CORS), para o Expo na web; em produção, só as origens configuradas.
+- Em Development a API aceita requisições de qualquer origem (CORS), para o Expo na web; nos demais ambientes, só as origens de `Cors__AllowedOrigins__N` (veja o [README](../README.md#cors)).
 - Com a API no ar em Development, o documento OpenAPI fica em `/openapi/v1.json`, gerado do código: quando divergir deste contrato, o código manda e este arquivo é corrigido no mesmo PR.
