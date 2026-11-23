@@ -4,8 +4,9 @@ namespace Estudarias.Api.Commands;
 
 /// <summary>
 /// <c>dotnet run --project src/Estudarias.Api -- seed [pasta]</c>: carrega o conteúdo dos YAML da pasta (padrão: <c>content</c>) e
-/// termina, sem subir o servidor. Usa a mesma composição e a mesma <c>ConnectionStrings__Default</c> da API. Sai com 0 quando
-/// gravou, e com 1 quando o conteúdo tem problema (e nada foi gravado).
+/// termina, sem subir o servidor. Um caminho relativo parte do diretório de trabalho, e o <c>dotnet run</c> usa a pasta do projeto
+/// como tal, então passe o caminho absoluto (<c>"$PWD/content"</c>). Usa a mesma composição e a mesma
+/// <c>ConnectionStrings__Default</c> da API. Sai com 0 quando gravou, e com 1 quando o conteúdo tem problema (e nada foi gravado).
 /// </summary>
 public static class SeedCommand
 {

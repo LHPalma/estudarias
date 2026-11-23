@@ -89,8 +89,12 @@ arquivo por tópico (`content/<slug>.yaml`), revisado por pull request como cód
 carregar no banco, com as migrations já aplicadas:
 
 ```bash
-dotnet run --project src/Estudarias.Api -- seed content/
+dotnet run --project src/Estudarias.Api -- seed "$PWD/content"
 ```
+
+Passe o caminho **absoluto** da pasta (o `"$PWD/content"` acima serve no bash, no zsh e no PowerShell, rodando na raiz do repositório). O
+`dotnet run` executa o programa com a pasta do projeto (`src/Estudarias.Api`) como diretório de trabalho, então um `content/` relativo
+seria procurado em `src/Estudarias.Api/content/`, que não existe, e o comando sairia com código 1 sem gravar nada.
 
 O comando valida todos os arquivos antes de gravar e grava tudo numa transação. Se algum arquivo tiver problema, ele lista cada
 problema com o arquivo e o item, sai com código 1 e não grava nada. Cada item é achado pela chave natural (o `slug` do tópico, o
@@ -255,7 +259,7 @@ mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha-
 - Os tópicos sem pré-requisito já vêm `available` para o aluno novo: o cadastro os libera, e abrir a trilha os libera de novo para quem se cadastrou antes de existir conteúdo (é a única escrita do endpoint, e é idempotente).
 - `dueReviews` conta os cartões do aluno cuja próxima revisão já chegou.
 - Cada item traz o link `topic`, e a trilha traz o `reviews`, que leva às revisões do dia.
-- É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed content/`); sem ele a trilha vem vazia.
+- É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed "$PWD/content"`); sem ele a trilha vem vazia.
 
 Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), e conta que não existe ou foi desabilitada (`identity.session.invalid`).
 

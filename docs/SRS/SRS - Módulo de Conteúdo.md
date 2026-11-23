@@ -136,7 +136,7 @@ Os agregados são mapeados no EF Core, com as tabelas `topic`, `topic_prerequisi
 
 ### RF-CNT-06: Carga do conteúdo (#85)
 
-Um comando (`dotnet run --project src/Estudarias.Api -- seed content/`) lê os arquivos YAML da pasta, **valida tudo** (RF-CNT-07) e grava numa **única transação**:
+Um comando (`dotnet run --project src/Estudarias.Api -- seed "$PWD/content"`, com o caminho absoluto: o `dotnet run` roda no diretório do projeto) lê os arquivos YAML da pasta, **valida tudo** (RF-CNT-07) e grava numa **única transação**:
 
 - **Formato:** um arquivo por tópico em `content/<slug>.yaml`, com nome, slug, pré-requisitos (por slug), tipos de erro, lições, exercícios (com as alternativas e o tipo de erro de cada errada) e flashcards.
 - **Chave natural e upsert:** cada item é identificado por uma chave estável do YAML (RN-CNT-11). Recarregar o mesmo arquivo não duplica nada e **mantém os ids**.
