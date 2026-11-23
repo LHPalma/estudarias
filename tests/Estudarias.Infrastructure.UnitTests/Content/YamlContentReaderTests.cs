@@ -35,7 +35,7 @@ public sealed class YamlContentReaderTests : IDisposable
 
         // Assert
         Assert.Empty(problems);
-        Assert.Equal(["equacoes-1-grau", "fracoes", "operacoes-basicas"], files.Select(file => file.Topic.Slug).Order());
+        Assert.Equal(["equacoes-1-grau", "fracoes", "operacoes-basicas", "porcentagem"], files.Select(file => file.Topic.Slug).Order());
     }
 
     [Fact(DisplayName = "O YAML vira os documentos, com a alternativa errada por padrão e o flashcard sem tipo de erro como manual")]
