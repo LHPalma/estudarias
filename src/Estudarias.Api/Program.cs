@@ -1,4 +1,5 @@
 using Estudarias.Api.Commands;
+using Estudarias.Api.Cors;
 using Estudarias.Api.ErrorHandling;
 using Estudarias.Api.Security;
 using Estudarias.Application;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSecurity(builder.Configuration);
+builder.Services.AddCorsPolicy(builder.Configuration, builder.Environment);
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
@@ -35,6 +37,9 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
+
+// Antes da autenticação: o preflight (OPTIONS) do navegador não leva token, e o CORS o responde sem passar pelo login.
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
