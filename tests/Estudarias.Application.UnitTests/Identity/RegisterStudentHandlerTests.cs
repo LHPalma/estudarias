@@ -1,9 +1,11 @@
 using Estudarias.Application.Common;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students;
+using Estudarias.Application.Topics;
 using Estudarias.Domain.Common.Exceptions;
 using Estudarias.Domain.Identity;
 using Estudarias.Domain.Students;
+using Estudarias.Domain.Topics;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -17,6 +19,7 @@ public class RegisterStudentHandlerTests
 
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IStudentRepository _students = Substitute.For<IStudentRepository>();
+    private readonly ITopicRepository _topics = Substitute.For<ITopicRepository>();
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly IExperimentalGroupAssigner _groups = Substitute.For<IExperimentalGroupAssigner>();
@@ -33,6 +36,7 @@ public class RegisterStudentHandlerTests
     public RegisterStudentHandlerTests()
     {
         _hasher.Hash(Arg.Any<Password>()).Returns(StoredHash);
+        _topics.ListAsync(Arg.Any<CancellationToken>()).Returns([]);
         _groups.Assign().Returns(ExperimentalGroup.Diagnostic);
         _accessTokens.Issue(Arg.Any<User>()).Returns(new IssuedAccessToken("access-token", Start.AddMinutes(15)));
         _students.When(repository => repository.Add(Arg.Any<Student>())).Do(call => _addedStudents.Add(call.Arg<Student>()));
@@ -41,7 +45,7 @@ public class RegisterStudentHandlerTests
     }
 
     private RegisterStudentHandler Handler() =>
-        new(_users, _students, _refreshTokens, _hasher, _groups, _accessTokens, _unitOfWork, _clock);
+        new(_users, _students, _topics, _refreshTokens, _hasher, _groups, _accessTokens, _unitOfWork, _clock);
 
     private static RegisterStudentCommand Valid(string? email = null) =>
         new("  Ana  ", email ?? "ana@example.com", "Senha-valida-1!");
@@ -72,6 +76,35 @@ public class RegisterStudentHandlerTests
         Assert.Equal(UserRole.Student, user.Role);
         Assert.Equal(student.Id, user.StudentId);
         Assert.True(user.IsActive);
+    }
+
+    [Fact(DisplayName = "O aluno já nasce com os tópicos sem pré-requisito liberados, e os dependentes bloqueados")]
+    public async Task Handle_UnlocksTheRootTopicsOfTheNewStudent()
+    {
+        // Arrange
+        var basics = Topic.Create("Operações básicas", "operacoes-basicas");
+        var fractions = Topic.Create("Frações", "fracoes");
+        fractions.AddPrerequisite(basics.Id);
+        _topics.ListAsync(Arg.Any<CancellationToken>()).Returns([basics, fractions]);
+
+        // Act
+        await Handler().Handle(Valid(), Cancel);
+
+        // Assert
+        var student = Assert.Single(_addedStudents);
+        Assert.Equal(TopicStatus.Available, student.StatusOf(basics.Id));
+        Assert.Equal(TopicStatus.Locked, student.StatusOf(fractions.Id));
+        await _unitOfWork.Received(1).SaveChangesAsync(Cancel);
+    }
+
+    [Fact(DisplayName = "Sem conteúdo carregado, o aluno nasce sem nenhum tópico liberado")]
+    public async Task Handle_WithoutContent_CreatesTheStudentWithoutProgress()
+    {
+        // Act
+        await Handler().Handle(Valid(), Cancel);
+
+        // Assert
+        Assert.Empty(Assert.Single(_addedStudents).Progress);
     }
 
     [Theory(DisplayName = "O grupo do aluno é o que o sorteador decidiu")]

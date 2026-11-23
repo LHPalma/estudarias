@@ -23,6 +23,20 @@ public class RegisterFlowTests(PostgresFixture postgres) : AuthenticationTests(p
         Assert.Equal(payload.User.Id, await ScalarAsync<Guid>("SELECT id FROM app_user"));
     }
 
+    [Fact(DisplayName = "O cadastro já libera os tópicos sem pré-requisito, na mesma gravação do aluno")]
+    public async Task Register_UnlocksTheRootTopics()
+    {
+        // Arrange
+        var content = await SeedContentAsync();
+
+        // Act
+        await RegisterAsync();
+
+        // Assert
+        Assert.Equal(1, await CountAsync("student_topic"));
+        Assert.Equal(content.Basics.Id, await ScalarAsync<Guid>("SELECT topic_id FROM student_topic"));
+    }
+
     [Fact(DisplayName = "RF-01: o cadastro já devolve uma sessão aberta, que renova")]
     public async Task Register_ReturnsASessionThatRenews()
     {
