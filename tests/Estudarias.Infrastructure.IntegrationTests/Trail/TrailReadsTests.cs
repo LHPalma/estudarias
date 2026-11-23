@@ -26,54 +26,13 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
 
     private static TrailTopicView Topic(TrailView trail, Guid id) => trail.Topics.Single(topic => topic.Id == id);
 
-    private async Task UpdateStudentAsync(Guid studentId, Action<Student> change)
-    {
-        using var scope = NewScope();
-        var student = (await scope.Students.FindAsync(studentId, Cancel))!;
-        change(student);
-        await scope.UnitOfWork.SaveChangesAsync(Cancel);
-    }
-
-    /// <summary>Uma lição com um exercício de cada dificuldade pedida, no tópico: devolve os exercícios, com a alternativa certa e a errada.</summary>
-    private async Task<List<Exercise>> SeedExercisesAsync(SampleContent content, Guid topicId, params Difficulty[] difficulties)
-    {
-        var lesson = Lesson.Create(topicId, 9, "Lição de apoio", "Conteúdo.");
-        var exercises = difficulties
-            .Select((difficulty, index) => Exercise.Create(
-                lesson.Id, index + 1,
-                $"apoio_{lesson.Id:N}_{index}",
-                $"Pergunta {index}",
-                difficulty,
-                [Alternative.Correct("certa"), Alternative.Wrong("errada", content.ErrorType.Id)]))
-            .ToList();
-
-        await WriteAsync(db =>
-        {
-            db.Lessons.Add(lesson);
-            db.Exercises.AddRange(exercises);
-        });
-
-        return exercises;
-    }
-
-    private async Task AnswerAsync(Guid studentId, Exercise exercise, bool correct)
-    {
-        var alternative = exercise.Alternatives.Single(candidate => candidate.IsCorrect == correct);
-        using var scope = NewScope();
-        scope.Attempts.Add(Attempt.Create(studentId, exercise.Id, alternative.Id, null, Clock));
-        await scope.UnitOfWork.SaveChangesAsync(Cancel);
-
-        // Cada resposta num instante próprio: a ordem da mais recente para a mais antiga não depende de desempate.
-        Clock.Advance(TimeSpan.FromMinutes(1));
-    }
-
     [Fact(DisplayName = "A trilha traz os tópicos em ordem de pré-requisito, com o status, os pré-requisitos e os totais")]
     public async Task Find_ReturnsTheTopicsInOrderWithStatusAndTotals()
     {
         // Arrange
         var content = await SeedContentAsync();
         var user = await SeedUserAsync();
-        await UpdateStudentAsync(user.StudentId!.Value, student => student.Unlock(content.Basics.Id, Clock));
+        await this.UpdateStudentAsync(user.StudentId!.Value, student => student.Unlock(content.Basics.Id, Clock));
 
         // Act
         var trail = await TrailOfAsync(user);
@@ -125,7 +84,7 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         // Arrange
         var content = await SeedContentAsync();
         var user = await SeedUserAsync();
-        await UpdateStudentAsync(user.StudentId!.Value, student =>
+        await this.UpdateStudentAsync(user.StudentId!.Value, student =>
         {
             student.Unlock(content.Basics.Id, Clock);
             student.MarkMastered(content.Basics.Id, Clock);
@@ -146,9 +105,9 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         // Arrange: a mais antiga errada, a mais recente certa, as duas médias: 100 × 2 / (2 + 1,8) = 52,6315...
         var content = await SeedContentAsync();
         var user = await SeedUserAsync();
-        var exercises = await SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Medium, Difficulty.Medium);
-        await AnswerAsync(user.StudentId!.Value, exercises[0], correct: false);
-        await AnswerAsync(user.StudentId!.Value, exercises[1], correct: true);
+        var exercises = await this.SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Medium, Difficulty.Medium);
+        await this.AnswerAsync(user.StudentId!.Value, exercises[0], correct: false);
+        await this.AnswerAsync(user.StudentId!.Value, exercises[1], correct: true);
 
         // Act
         var trail = await TrailOfAsync(user);
@@ -164,11 +123,11 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         // Arrange: uma resposta errada, a mais antiga, e depois dez certas
         var content = await SeedContentAsync();
         var user = await SeedUserAsync();
-        var exercises = await SeedExercisesAsync(content, content.Fractions.Id, Enumerable.Repeat(Difficulty.Easy, 11).ToArray());
-        await AnswerAsync(user.StudentId!.Value, exercises[0], correct: false);
+        var exercises = await this.SeedExercisesAsync(content, content.Fractions.Id, Enumerable.Repeat(Difficulty.Easy, 11).ToArray());
+        await this.AnswerAsync(user.StudentId!.Value, exercises[0], correct: false);
         foreach (var exercise in exercises.Skip(1))
         {
-            await AnswerAsync(user.StudentId!.Value, exercise, correct: true);
+            await this.AnswerAsync(user.StudentId!.Value, exercise, correct: true);
         }
 
         // Act
@@ -184,10 +143,10 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         // Arrange
         var content = await SeedContentAsync();
         var user = await SeedUserAsync();
-        var basics = await SeedExercisesAsync(content, content.Basics.Id, Difficulty.Easy);
-        var fractions = await SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Easy);
-        await AnswerAsync(user.StudentId!.Value, basics[0], correct: true);
-        await AnswerAsync(user.StudentId!.Value, fractions[0], correct: false);
+        var basics = await this.SeedExercisesAsync(content, content.Basics.Id, Difficulty.Easy);
+        var fractions = await this.SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Easy);
+        await this.AnswerAsync(user.StudentId!.Value, basics[0], correct: true);
+        await this.AnswerAsync(user.StudentId!.Value, fractions[0], correct: false);
 
         // Act
         var trail = await TrailOfAsync(user);
@@ -204,8 +163,8 @@ public class TrailReadsTests(PostgresFixture postgres) : DatabaseTests(postgres)
         var content = await SeedContentAsync();
         var ana = await SeedUserAsync("ana@example.com");
         var bia = await SeedUserAsync("bia@example.com");
-        var exercises = await SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Easy);
-        await AnswerAsync(bia.StudentId!.Value, exercises[0], correct: true);
+        var exercises = await this.SeedExercisesAsync(content, content.Fractions.Id, Difficulty.Easy);
+        await this.AnswerAsync(bia.StudentId!.Value, exercises[0], correct: true);
 
         // Act
         var anaTrail = await TrailOfAsync(ana);
