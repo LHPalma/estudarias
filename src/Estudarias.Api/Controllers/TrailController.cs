@@ -45,7 +45,9 @@ public sealed class TrailController(
             BuildLinks()));
     }
 
-    // O link reviews entra com o GET /reviews/due (#89): um link só existe quando a rota dele existe, e o Url.LinkTo recusa uma
-    // rota inexistente (ADR-004).
-    private List<Link> BuildLinks() => [Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTrailRoute)];
+    private List<Link> BuildLinks() =>
+    [
+        Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTrailRoute),
+        Url.LinkTo(LinkRelations.Reviews, HttpMethods.Get, ReviewController.GetDueReviewsRoute),
+    ];
 }

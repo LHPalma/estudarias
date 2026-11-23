@@ -46,6 +46,7 @@ public sealed class AttemptController(ICurrentUser currentUser, SubmitAttemptHan
         var links = new List<Link>
         {
             Url.LinkTo(LinkRelations.Topic, HttpMethods.Get, TopicController.GetTopicRoute, new { topicId = result.Topic.Id }),
+            Url.LinkTo(LinkRelations.Reviews, HttpMethods.Get, ReviewController.GetDueReviewsRoute),
         };
 
         return StatusCode(StatusCodes.Status201Created, AttemptResponse.From(result, links));

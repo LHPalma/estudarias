@@ -15,6 +15,12 @@ public static class LinkRelations
     /// <summary>Responder um exercício (<c>POST /exercises/{id}/attempts</c>): só existe quando o tópico do exercício não está bloqueado.</summary>
     public const string Answer = "answer";
 
+    /// <summary>As revisões do dia (<c>GET /reviews/due</c>): a trilha, a resposta e a revisão apontam para elas.</summary>
+    public const string Reviews = "reviews";
+
+    /// <summary>Revisar um cartão (<c>POST /reviews/{id}</c>): só existe nos cartões vencidos.</summary>
+    public const string Review = "review";
+
     /// <summary>Uma lição (<c>GET /lessons/{id}</c>): só existe quando o tópico dela não está bloqueado.</summary>
     public const string Lesson = "lesson";
 
