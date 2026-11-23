@@ -35,6 +35,9 @@ public sealed class MeController(ICurrentUser currentUser, IProfileReads profile
         return profile is null ? throw IdentityErrors.InvalidSession() : Ok(MeResponse.From(profile, BuildLinks()));
     }
 
-    // O link trail entra aqui com o GET /trail (#86), quando a rota dele existir.
-    private List<Link> BuildLinks() => [Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetMeRoute)];
+    private List<Link> BuildLinks() =>
+    [
+        Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetMeRoute),
+        Url.LinkTo(LinkRelations.Trail, HttpMethods.Get, TrailController.GetTrailRoute),
+    ];
 }
