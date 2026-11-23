@@ -75,6 +75,7 @@ Table lesson {
 Table exercise {
   id uuid [pk]
   lesson_id uuid [not null, ref: > lesson.id]
+  position int [not null, note: 'a ordem do exercício na lição, a partir de 1, a do arquivo do conteúdo (ck_exercise_position: CHECK (position >= 1)). Sem índice único: a recarga pode trocar duas posições (#104)']
   code "varchar(100)" [not null, note: 'chave natural na carga do conteúdo, única no tópico (#85); formato dos códigos de tipo de erro']
   statement text [not null]
   difficulty difficulty [not null, note: "ck_exercise_difficulty: CHECK (difficulty IN ('easy', 'medium', 'hard'))"]
@@ -87,6 +88,7 @@ Table exercise {
 Table alternative {
   id uuid [pk]
   exercise_id uuid [not null, ref: > exercise.id, note: 'Índice ix_alternative_exercise_id']
+  position int [not null, note: 'a ordem da alternativa no exercício, a partir de 1, a do arquivo do conteúdo (ck_alternative_position: CHECK (position >= 1)). O id não serve de ordem: um Guid v7 não cresce dentro de uma rajada de criação (#104)']
   text text [not null]
   is_correct boolean [not null]
   error_type_id uuid [null, ref: > error_type.id, note: 'NULL se correta. Índice ix_alternative_error_type_id']
