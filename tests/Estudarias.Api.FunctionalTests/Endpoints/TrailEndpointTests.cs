@@ -1,9 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Estudarias.Api.FunctionalTests.Support;
-using Estudarias.Application.Content;
 using Estudarias.Infrastructure.IntegrationTests.Support;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Estudarias.Api.FunctionalTests.Endpoints;
 
@@ -12,32 +10,8 @@ namespace Estudarias.Api.FunctionalTests.Endpoints;
 /// a liberação inicial e os links. O token vem do cadastro, como o app o obteria.
 /// </summary>
 [Collection(PostgresCollection.Name)]
-public class TrailEndpointTests(PostgresFixture postgres) : AuthEndpointsTests(postgres)
+public class TrailEndpointTests(PostgresFixture postgres) : ContentEndpointsTests(postgres)
 {
-    private static string ContentFolder()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Estudarias.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Solution root not found."), "content");
-    }
-
-    private async Task LoadContentAsync()
-    {
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var result = await scope.ServiceProvider.GetRequiredService<IContentLoader>().LoadAsync(ContentFolder(), Cancel);
-        Assert.True(result.Succeeded, string.Join('\n', result.Problems));
-    }
-
-    private async Task<JsonElement> TrailAsync(JsonElement session) =>
-        await JsonAsync(await GetWithTokenAsync("/trail", AccessTokenOf(session)));
-
-    private static JsonElement TopicOf(JsonElement trail, string slug) =>
-        trail.GetProperty("topics").EnumerateArray().Single(topic => topic.GetProperty("slug").GetString() == slug);
-
     [Fact(DisplayName = "GET /trail responde 200 com a raiz disponível, os dependentes bloqueados e os totais")]
     public async Task Trail_ForANewStudent_ShowsTheRootAvailable()
     {
@@ -119,6 +93,26 @@ public class TrailEndpointTests(PostgresFixture postgres) : AuthEndpointsTests(p
         Assert.Equal(["href", "method", "rel"], link.EnumerateObject().Select(property => property.Name).Order());
         Assert.Equal("GET", link.GetProperty("method").GetString());
         Assert.Equal("http://localhost/trail", link.GetProperty("href").GetString());
+    }
+
+    [Fact(DisplayName = "Cada item da trilha traz o link topic, com a URL absoluta do tópico, e ele leva ao tópico")]
+    public async Task Trail_EachItemLinksToItsTopic()
+    {
+        // Arrange
+        await LoadContentAsync();
+        var session = await RegisterAsync();
+        var trail = await TrailAsync(session);
+
+        // Act & Assert
+        foreach (var item in trail.GetProperty("topics").EnumerateArray())
+        {
+            var link = Assert.Single(item.GetProperty("links").EnumerateArray());
+            Assert.Equal(("topic", "GET"), (link.GetProperty("rel").GetString(), link.GetProperty("method").GetString()));
+            Assert.Equal($"http://localhost/topics/{item.GetProperty("id").GetGuid()}", link.GetProperty("href").GetString());
+
+            var followed = await GetWithTokenAsync(link.GetProperty("href").GetString()!, AccessTokenOf(session));
+            Assert.Equal(HttpStatusCode.OK, followed.StatusCode);
+        }
     }
 
     [Fact(DisplayName = "O link trail do perfil leva à trilha")]
