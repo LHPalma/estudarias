@@ -95,7 +95,7 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
 - `status`: `locked`, `available` ou `mastered`. Um tópico liberado nunca volta a `locked`.
 - `score`: `null` enquanto o aluno não respondeu nada no tópico.
 - `dueReviews`: cartões com revisão vencida, para o aviso "N revisões para hoje".
-- **Links entregues:** o `self` da trilha (#86) e o `topic` de cada item (#87). O `reviews` entra com o `GET /reviews/due` (#89): um link só existe quando a rota dele existe (ADR-004).
+- **Links:** o `self` da trilha, o `topic` de cada item e o `reviews`, que leva às revisões do dia.
 - A nota usa as 10 respostas mais recentes do aluno no tópico. A trilha de um aluno que ainda não tem a raiz liberada a libera antes de responder (idempotente).
 
 ## Tópico — `GET /topics/{topicId}`
@@ -215,12 +215,12 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 - `unlockedTopics`: `[{ "id", "name" }]` dos tópicos liberados por esta resposta, para o aviso de desbloqueio. Vazio na maioria das respostas.
 - `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, o aluno já tem o cartão desse tipo de erro, ou o conteúdo não tem flashcard para ele). O cartão nasce **nos dois grupos** (ADR-005). `id` é o id do cartão do aluno, o que `POST /reviews/{id}` usa.
 - O aluno e o grupo experimental são os do token: um `experimentalGroup` ou `studentId` no corpo é ignorado.
-- `links`: o `topic` (para a tela voltar ao tópico com a nota nova). O `reviews` entra com o `GET /reviews/due` (#89), e o campo `lesson` (o estado da lição) com a #91.
+- `links`: o `topic` (para a tela voltar ao tópico com a nota nova) e o `reviews` (para a tela ir às revisões do dia). O campo `lesson` (o estado da lição) entra com a #91.
 - Erros: `404 trail.exercise.notFound`; `400 answer.alternative.notInExercise`; `400 attempt.responseTime.invalid`; `403 student.topic.locked`.
 
 ## Revisões do dia — `GET /reviews/due`
 
-Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente. A resposta vem junto: virar o cartão é coisa do app.
+Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente. A resposta vem junto: virar o cartão é coisa do app. Sem cartões vencidos (ou sem nenhum cartão), `count: 0` e `items: []`. O `id` de cada item é o do cartão do aluno, o que `POST /reviews/{id}` usa.
 
 ```json
 {
@@ -265,6 +265,10 @@ Os cartões do aluno com revisão vencida, do mais atrasado para o mais recente.
 ```
 
 - Revisar antes do vencimento é aceito; o link `review` só aparece quando venceu.
+- A próxima revisão parte do **instante em que o aluno revisou**, e não da data agendada. No SM-2: `again` recomeça (1 dia), a primeira revisão correta mantém 1 dia, a segunda leva a 6, e as seguintes multiplicam pelo fator de facilidade.
+- `rating` é texto em minúsculas; `Good`, uma nota desconhecida ou ausente é `400`.
+- Revisar não é uma tentativa: não muda a nota nem o status do tópico.
+- Duas revisões simultâneas do mesmo cartão: a última gravação vale (PEND-REV-02).
 - Erros: `404 review.card.notFound` (também para o cartão de outro aluno); `400 studentFlashcard.rating.invalid`.
 
 ## Desenvolvimento do app

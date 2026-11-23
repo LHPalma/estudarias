@@ -170,7 +170,7 @@ A resposta ganha `lesson` com o `status` novo da lição do exercício, para a t
 
 ### RF-RSP-08: Resposta da API
 
-`201 Created` e o corpo (sem o cabeçalho `Location`: a tentativa não tem um recurso próprio para ler, e o `Url.LinkTo` recusa uma rota que não existe, ADR-004): `attemptId`, `isCorrect`, `correctAlternativeId`, `feedback`, `topic`, `unlockedTopics`, `flashcard`, `lesson` e `links` (`topic` hoje; o `reviews` entra com o `GET /reviews/due`, #89). Os campos e os exemplos estão em `docs/api.md`.
+`201 Created` e o corpo (sem o cabeçalho `Location`: a tentativa não tem um recurso próprio para ler, e o `Url.LinkTo` recusa uma rota que não existe, ADR-004): `attemptId`, `isCorrect`, `correctAlternativeId`, `feedback`, `topic`, `unlockedTopics`, `flashcard`, `lesson` e `links` (`topic` e `reviews`). Os campos e os exemplos estão em `docs/api.md`.
 
 ---
 

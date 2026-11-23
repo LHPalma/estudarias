@@ -254,7 +254,7 @@ mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha-
 - `status` é `locked`, `available` ou `mastered`. `score` vai de 0 a 100, com uma casa e **arredondada para baixo** (69,95 sai `69.9`, nunca `70.0`), e é `null` enquanto o aluno não respondeu nada no tópico. A nota usa as 10 respostas mais recentes do aluno no tópico.
 - Os tópicos sem pré-requisito já vêm `available` para o aluno novo: o cadastro os libera, e abrir a trilha os libera de novo para quem se cadastrou antes de existir conteúdo (é a única escrita do endpoint, e é idempotente).
 - `dueReviews` conta os cartões do aluno cuja próxima revisão já chegou.
-- Cada item traz o link `topic`. O `reviews` entra com o `GET /reviews/due`: um link só existe quando a rota dele existe.
+- Cada item traz o link `topic`, e a trilha traz o `reviews`, que leva às revisões do dia.
 - É preciso ter carregado o conteúdo (`dotnet run --project src/Estudarias.Api -- seed content/`); sem ele a trilha vem vazia.
 
 Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), e conta que não existe ou foi desabilitada (`identity.session.invalid`).
@@ -322,4 +322,45 @@ Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), 
 | `403` | o tópico do exercício está bloqueado | `student.topic.locked` |
 | `404` | o exercício não existe | `trail.exercise.notFound` |
 | `415` | corpo que não é JSON | sem `code` |
+
+## API das revisões
+
+`GET /reviews/due` lista as revisões do dia do aluno logado, e `POST /reviews/{id}` registra uma revisão. O contrato completo está em [`docs/api.md`](docs/api.md#revisões-do-dia--get-reviewsdue).
+
+```json
+// GET /reviews/due
+{
+  "count": 1,
+  "items": [{
+    "id": "0192f0c4-...",
+    "question": "Por que 1/2 + 1/3 não é 2/5?",
+    "answer": "Porque só se somam numeradores quando os denominadores são iguais.",
+    "topic": { "id": "0192f0c4-...", "name": "Frações" },
+    "nextReviewAt": "2026-11-16T13:00:00+00:00",
+    "links": [{ "href": "http://localhost:5007/reviews/0192f0c4-...", "rel": "review", "method": "POST" }]
+  }],
+  "links": [
+    { "href": "http://localhost:5007/reviews/due", "rel": "self", "method": "GET" },
+    { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
+  ]
+}
+```
+
+```json
+// POST /reviews/0192f0c4-...   { "rating": "good" }   ->   200 OK
+{ "id": "0192f0c4-...", "nextReviewAt": "2026-11-22T13:00:00+00:00", "links": [{ "href": "http://localhost:5007/reviews/due", "rel": "reviews", "method": "GET" }] }
+```
+
+- A lista traz só os cartões **vencidos**, do mais atrasado ao mais recente, já com a pergunta e a resposta: virar o cartão é coisa do app. Sem nenhum, `count: 0`.
+- `rating` é `again`, `hard`, `good` ou `easy`, em minúsculas. A próxima revisão parte do **instante em que o aluno revisou** (SM-2, [ADR-003](docs/adr/0003-spaced-repetition-scheduler.md)). Revisar antes do vencimento é aceito.
+- O cartão é do aluno do token: o de outro aluno responde `404`, igual a um que não existe. O agendador é o do algoritmo gravado no cartão.
+- Revisar **não** é uma tentativa: não muda a nota nem o status do tópico. Duas revisões simultâneas do mesmo cartão: a última gravação vale.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `400` | nota ausente, em maiúsculas ou desconhecida | `studentFlashcard.rating.invalid` |
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `404` | cartão que não existe ou é de outro aluno | `review.card.notFound` |
+| `415` | corpo que não é JSON | sem `code` |
+| `500` | algoritmo do cartão sem agendador, ou estado de agendamento corrompido | sem `code`, sem detalhe técnico |
 

@@ -1,8 +1,8 @@
 # SRS — Módulo de Revisão Espaçada (Flashcards do Aluno, Revisões do Dia e SM-2)
 
-**Status:** Em implementação. O núcleo já está no Domain e na `main` (#20, PR #76): o port `IReviewScheduler`, o SM-2 (`Sm2Schedule` e `Sm2Scheduler`), o agregado `StudentFlashcard` com a criação e a revisão, e o ADR-003. A persistência do cartão do aluno (#84) está implementada (tabela `student_flashcard`, Seção 8.2). Faltam os endpoints `GET /reviews/due` e `POST /reviews/{id}`, com o caso de uso `ReviewFlashcard` (#89). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. O núcleo já está no Domain e na `main` (#20, PR #76): o port `IReviewScheduler`, o SM-2 (`Sm2Schedule` e `Sm2Scheduler`), o agregado `StudentFlashcard` com a criação e a revisão, e o ADR-003. A persistência do cartão do aluno (#84) está implementada (tabela `student_flashcard`, Seção 8.2). Os endpoints `GET /reviews/due` e `POST /reviews/{id}` e o caso de uso `ReviewFlashcard` estão implementados (#89). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
-**Decisões:** o cartão nos dois grupos está decidido (ADR-005, ex-PEND-REV-01). Resta a PEND-REV-02 (Seção 7.5).
+**Decisões:** o cartão nos dois grupos (ADR-005, ex-PEND-REV-01) e a revisão simultânea do mesmo cartão (ex-PEND-REV-02, Seção 7.5) estão decididos.
 
 ---
 
@@ -294,7 +294,7 @@ Erro do servidor (`InvalidOperationException`, RN-REV-14), sem detalhe técnico 
 
 ### FA-REV-08: Duas revisões simultâneas do mesmo cartão
 
-O contrato não diz o que acontece (PEND-REV-02): duas revisões que leem o mesmo estado e gravam podem fazer uma delas ser perdida. A forma exata (token de concorrência, ou aceitar a última) é definida na #89.
+**A última gravação vale**, sem token de concorrência (decidido na #89, ex-PEND-REV-02). Duas revisões que leem o mesmo estado e gravam fazem uma delas ser sobrescrita, e isso é inofensivo: com a mesma nota as duas gravam o mesmo resultado (o SM-2 é determinístico, e o instante de cada uma é praticamente o mesmo), e com notas diferentes vale a última. Um token de concorrência custaria um `409` novo no contrato e no app por quase nenhum ganho. Uma revisão repetida depois de a primeira ter sido gravada (a resposta se perdeu e o app reenviou) avança o cartão duas vezes, com ou sem token; a lista do dia já não mostra o cartão, então o app só chega a esse reenvio por um pedido repetido.
 
 ### FA-REV-09: Requisição sem token
 
@@ -353,11 +353,9 @@ Sem variável nova. O algoritmo ativo para cartões novos é definido no composi
 - Suspender, adiar ou apagar um cartão.
 - Limite de cartões novos ou de revisões por dia.
 
-### 7.5 Decisões pendentes
+### 7.5 Decisões
 
-| Id | Pendência | Proposta atual |
-|---|---|---|
-| **PEND-REV-02** | **Revisões simultâneas do mesmo cartão.** O contrato e o Domain não dizem o que acontece quando duas revisões chegam juntas. | Decidir na #89 entre um token de concorrência (a segunda recebe erro) e aceitar a última gravação. O risco real é pequeno (um aluno, um aparelho), mas o app reenvia a requisição ao renovar a sessão. |
+A PEND-REV-01 (o cartão nos dois grupos) foi decidida no ADR-005, e a PEND-REV-02 (revisões simultâneas do mesmo cartão), na #89: a última gravação vale (FA-REV-08). Não há decisões pendentes neste módulo.
 
 ---
 
@@ -422,8 +420,8 @@ erDiagram
 | RN-REV-01, RN-REV-08, RN-REV-09 (`IsDue`), RN-REV-03 (nota inválida) | Domain: #23 (PR #76) | `StudentFlashcardReviewTests` |
 | RN-REV-02, RN-REV-14, RNF-REV-01 | ADR-003 (PR #76); Domain | `Sm2SchedulerTests`; `StudentFlashcardReviewTests` |
 | RF-REV-06, RN-REV-12, RN-REV-15, RNF-REV-04 | #84: `StudentFlashcardConfiguration`, `StudentFlashcardRepository`, migration `AddProgress` (`StudentFlashcardRepositoryTests`) | Integração: cartão vai e volta; o estado `jsonb` do SM-2 é lido de volta igual; as restrições são recusadas pelo banco |
-| RF-REV-02, RN-REV-09, RN-REV-10, RF-REV-05, FA-REV-01, RNF-REV-03 | #89 (a fazer) | Integração da leitura (só vencidos, ordem) |
-| RF-REV-03, RF-REV-07, RN-REV-11, RN-REV-13, RN-REV-16, RN-REV-18, FA-REV-02 a FA-REV-08 | #89 (a fazer) | Unidade do caso de uso; funcionais por HTTP (revisar reagenda; cartão de outro aluno dá `404`; nota inválida dá `400`) |
+| RF-REV-02, RN-REV-09, RN-REV-10, RF-REV-05, FA-REV-01, RNF-REV-03 | #89: `ReviewReads`, `ReviewController.GetDue` | `ReviewReadsTests` (integração: só vencidos, ordem e desempate, só do aluno, uma consulta que não lê o estado de agendamento); `ReviewEndpointTests` (funcionais: campos do contrato, lista vazia, cartões nascidos de erros de verdade) |
+| RF-REV-03, RF-REV-07, RN-REV-08, RN-REV-11, RN-REV-13, RN-REV-14, RN-REV-16, RN-REV-18, FA-REV-02 a FA-REV-09 | #89: `ReviewFlashcardHandler`, `ReviewSchedulers` (um agendador por algoritmo), `ReviewController.Post`, `StudentFlashcardErrors.InvalidRating` | `ReviewFlashcardHandlerTests` e `ReviewSchedulersTests`; `ReviewFlashcardFlowTests` (PostgreSQL: o estado `jsonb` do SM-2, os intervalos 1, 6, o `again`, algoritmo sem agendador, estado corrompido, a revisão simultânea); `ReviewEndpointTests` (revisar reagenda, outro aluno e inexistente dão o mesmo `404`, nota inválida dá `400`, revisar não muda a nota) |
 | RN-REV-17 | ADR-005 | — |
 | Contrato dos endpoints | #82 (PR #90) | Revisão do `docs/api.md` |
 
