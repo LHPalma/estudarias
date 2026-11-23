@@ -27,6 +27,7 @@ Cada recurso traz `links`: as ações que o aluno pode fazer naquele estado (for
 | `trail` | perfil, tópico | sempre |
 | `topic` | item da trilha, tópico desbloqueado | sempre (o tópico bloqueado abre para mostrar o que falta) |
 | `lesson` | item de lição | só se o tópico não está bloqueado |
+| `attempts` | tópico | só se o tópico não está bloqueado |
 | `answer` | exercício | só se o tópico não está bloqueado |
 | `reviews` | trilha | sempre |
 | `review` | cartão | só se a revisão venceu |
@@ -150,6 +151,36 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
   - Concluir a lição não domina o tópico (e o tópico pode ser dominado antes de todas as lições estarem concluídas). Os dois grupos experimentais veem o mesmo estado.
 - `unlocks`: os tópicos que têm este como pré-requisito.
 - Erros: `404 trail.topic.notFound`.
+
+## Histórico de respostas — `GET /topics/{topicId}/attempts`
+
+As respostas do aluno no tópico que **entram na nota**: as 10 mais recentes, da mais recente para a mais antiga. Serve ao app para mostrar o histórico que explica por que a nota subiu ou caiu.
+
+```json
+{
+  "items": [
+    {
+      "attemptId": "0192f0c4-0008-7000-8000-000000000003",
+      "exerciseId": "0192f0c4-0004-7000-8000-000000000001",
+      "statement": "Quanto é 1/2 + 1/3?",
+      "difficulty": "medium",
+      "isCorrect": false,
+      "answeredAt": "2026-11-16T13:00:00Z"
+    }
+  ],
+  "links": [
+    { "href": ".../topics/0192f0c4-0001-7000-8000-000000000002/attempts", "rel": "self", "method": "GET" },
+    { "href": ".../topics/0192f0c4-0001-7000-8000-000000000002", "rel": "topic", "method": "GET" }
+  ]
+}
+```
+
+- `difficulty`: `easy`, `medium` ou `hard`.
+- É exatamente a janela da nota, no mesmo critério de ordenação que o cálculo: refazer a nota por estas respostas dá a nota do tópico. Quando o aluno tem mais de 10 respostas, as mais antigas não aparecem (o `attemptCount` do tópico segue contando todas).
+- Não traz a alternativa escolhida nem a correta: o histórico explica a nota, e não revisa o exercício.
+- Um tópico liberado sem respostas devolve `200` com `items: []`.
+- O link `attempts` do tópico só existe quando ele não está bloqueado.
+- Erros: `404 trail.topic.notFound`; `403 student.topic.locked` se o tópico está bloqueado.
 
 ## Lição — `GET /lessons/{lessonId}`
 
