@@ -218,12 +218,12 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
 
         // Assert
         Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
-        Assert.Equal((111, 0, 0), (result.Created, result.Updated, result.Unchanged));
+        Assert.Equal((113, 0, 0), (result.Created, result.Updated, result.Unchanged));
         Assert.Equal(4, await ScalarAsync<long>("SELECT count(*) FROM topic"));
         Assert.Equal(27, await ScalarAsync<long>("SELECT count(*) FROM error_type"));
         Assert.Equal(12, await ScalarAsync<long>("SELECT count(*) FROM lesson"));
-        Assert.Equal(35, await ScalarAsync<long>("SELECT count(*) FROM exercise"));
-        Assert.Equal(121, await ScalarAsync<long>("SELECT count(*) FROM alternative"));
+        Assert.Equal(37, await ScalarAsync<long>("SELECT count(*) FROM exercise"));
+        Assert.Equal(128, await ScalarAsync<long>("SELECT count(*) FROM alternative"));
         Assert.Equal(33, await ScalarAsync<long>("SELECT count(*) FROM flashcard"));
         Assert.Equal(
             "operacoes-basicas",
@@ -251,7 +251,7 @@ public sealed class ContentLoaderTests(PostgresFixture postgres) : DatabaseTests
 
         // Assert
         Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Problems));
-        Assert.Equal((0, 0, 111), (result.Created, result.Updated, result.Unchanged));
+        Assert.Equal((0, 0, 113), (result.Created, result.Updated, result.Unchanged));
         Assert.Equal(before, await AllContentIdsAsync());
     }
 
