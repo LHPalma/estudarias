@@ -1,4 +1,5 @@
 using Estudarias.Api.Contracts.Me;
+using Estudarias.Api.Links;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students.Queries;
 using Estudarias.Domain.Identity;
@@ -16,18 +17,24 @@ namespace Estudarias.Api.Controllers;
 [Produces("application/json")]
 public sealed class MeController(ICurrentUser currentUser, IProfileReads profiles) : ControllerBase
 {
+    /// <summary>O nome da rota do perfil: é por ele que os links e o <c>Location</c> do cadastro chegam aqui.</summary>
+    public const string GetMeRoute = "GetMe";
+
     /// <summary>O perfil do aluno logado: a conta e o perfil de estudo.</summary>
     /// <remarks>
     /// Um token válido de uma conta que não existe mais, ou foi desabilitada, também responde 401 (<c>identity.session.invalid</c>),
     /// sem dizer qual dos dois: para o app, a sessão deixou de valer.
     /// </remarks>
-    [HttpGet(Name = "GetMe")]
+    [HttpGet(Name = GetMeRoute)]
     [ProducesResponseType<MeResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         var profile = currentUser.UserId is { } userId ? await profiles.FindAsync(userId, cancellationToken) : null;
 
-        return profile is null ? throw IdentityErrors.InvalidSession() : Ok(MeResponse.From(profile));
+        return profile is null ? throw IdentityErrors.InvalidSession() : Ok(MeResponse.From(profile, BuildLinks()));
     }
+
+    // O link trail entra aqui com o GET /trail (#86), quando a rota dele existir.
+    private List<Link> BuildLinks() => [Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetMeRoute)];
 }
