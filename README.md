@@ -244,8 +244,8 @@ mostra no topo. O contrato completo está em [`docs/api.md`](docs/api.md#trilha-
   "totalTopics": 2,
   "dueReviews": 0,
   "topics": [
-    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] },
-    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] }
+    { "id": "0192f0c4-...", "slug": "operacoes-basicas", "name": "Operações básicas", "status": "available", "score": null, "prerequisites": [], "completedLessons": 1, "totalLessons": 2, "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] },
+    { "id": "0192f0c4-...", "slug": "fracoes", "name": "Frações", "status": "locked", "score": null, "prerequisites": ["0192f0c4-..."], "completedLessons": 0, "totalLessons": 2, "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }] }
   ],
   "links": [{ "href": "http://localhost:5007/trail", "rel": "self", "method": "GET" }]
 }
@@ -269,7 +269,7 @@ Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), 
   "score": 42.0, "attemptCount": 3, "masteryThreshold": 70, "minAttempts": 5,
   "prerequisites": [{ "id": "0192f0c4-...", "name": "Operações básicas", "status": "mastered" }],
   "unlocks": [{ "id": "0192f0c4-...", "name": "Equações do 1º grau" }],
-  "lessons": [{ "id": "0192f0c4-...", "order": 1, "title": "Soma de frações", "links": [{ "href": "http://localhost:5007/lessons/0192f0c4-...", "rel": "lesson", "method": "GET" }] }],
+  "lessons": [{ "id": "0192f0c4-...", "order": 1, "title": "Soma de frações", "status": "inProgress", "completedExercises": 1, "totalExercises": 3, "links": [{ "href": "http://localhost:5007/lessons/0192f0c4-...", "rel": "lesson", "method": "GET" }] }],
   "links": [
     { "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "self", "method": "GET" },
     { "href": "http://localhost:5007/trail", "rel": "trail", "method": "GET" }
@@ -277,6 +277,7 @@ Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), 
 }
 ```
 
+- **Estado da lição:** cada lição do tópico traz `status` (`notStarted`, `inProgress` ou `completed`) e os exercícios acertados, de quantos. Concluída é ter acertado **cada** exercício pelo menos uma vez; é derivado das tentativas, e errar depois não desfaz. A trilha traz `completedLessons` e `totalLessons` de cada tópico, e a resposta de responder traz a `lesson` já com a resposta nova. Concluir a lição não domina o tópico.
 - **Tópico bloqueado abre** (`200`): a tela mostra o que falta, e as lições vêm **sem o link `lesson`**. `attemptCount` é o total de tentativas no tópico; `score` usa as 10 mais recentes.
 - **A lição nunca revela o gabarito:** cada alternativa só tem `id` e `text`, e a consulta nem lê `is_correct` nem `error_type_id`. Exercícios e alternativas vêm na ordem do conteúdo (gravada em `position`).
 - O link `answer` de cada exercício entra com o `POST /exercises/{id}/attempts`.
@@ -304,6 +305,7 @@ Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), 
   "correctAlternativeId": "0192f0c4-...",
   "feedback": { "kind": "incorrectWithDiagnosis", "correctAnswer": "5/6", "errorType": { "name": "Soma direta de numeradores e denominadores", "feedback": "..." } },
   "topic": { "id": "0192f0c4-...", "status": "available", "score": 38.5, "attemptCount": 4 },
+  "lesson": { "id": "0192f0c4-...", "status": "inProgress", "completedExercises": 1, "totalExercises": 3 },
   "unlockedTopics": [],
   "flashcard": { "id": "0192f0c4-...", "nextReviewAt": "2026-11-17T13:00:00+00:00" },
   "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }]

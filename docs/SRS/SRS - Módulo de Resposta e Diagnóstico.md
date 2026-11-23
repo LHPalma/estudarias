@@ -26,7 +26,7 @@ Cobre:
 - O **registro da tentativa**, com o tempo de resposta opcional.
 - O **recálculo da nota**, a avaliação do **domínio** e o **desbloqueio**, na mesma chamada.
 - A regra **"erro gera flashcard"**.
-- O **estado da lição** devolvido na resposta (#91).
+- O cálculo do estado da lição (módulo Trilha e Progresso, #91); a resposta o traz (RF-RSP-07).
 
 Não cobre (ver Seção 7):
 
@@ -166,7 +166,7 @@ Se o aluno **errou**, o caso de uso busca o flashcard gerado por aquele **tipo d
 
 ### RF-RSP-07: Estado da lição na resposta (#91)
 
-A resposta ganha `lesson` com o `status` novo da lição do exercício, para a tela de fim de lição mostrar "Lição concluída" **só quando for verdade** (módulo Trilha e Progresso, RN-TRL-12).
+A resposta ganha `lesson`, com o `id` da lição do exercício, o `status` novo dela e os exercícios acertados, de quantos (`completedExercises` e `totalExercises`), para a tela de fim de lição mostrar "Lição concluída" **só quando for verdade** (módulo Trilha e Progresso, RN-TRL-12). O estado considera a resposta que acabou de chegar, que ainda não está no banco: o exercício entra entre os tentados e, se acertou, entre os acertados.
 
 ### RF-RSP-08: Resposta da API
 
@@ -408,7 +408,7 @@ Restrições como estão na migration `AddProgress`: `ck_attempt_response_second
 | RF-RSP-01, RF-RSP-05, RF-RSP-06, RN-RSP-01, RN-RSP-08 a RN-RSP-13, FA-RSP-01 a FA-RSP-07, FA-RSP-10 | #88: `SubmitAttemptHandler`, `IExerciseRepository`, `IErrorTypeRepository`, `IFlashcardRepository`, `IAnswerReads`, `IStudentFlashcardRepository.Discard`, o `Sm2Scheduler` no composition root | `SubmitAttemptHandlerTests` (acerto, erro nos dois grupos, cartão repetido, sem flashcard no conteúdo, nota com a nova resposta e janela de 10, domínio e desbloqueio, tópico bloqueado, alternativa de outro exercício, tempo negativo, a corrida do cartão); `SubmitAttemptFlowTests` (PostgreSQL: o que fica gravado, a corrida de verdade, o nome do índice) |
 | RF-RSP-08, FA-RSP-08 a FA-RSP-11, RNF-RSP-02, RNF-RSP-05 | #88: `AttemptController`, `AttemptRequest`, `AttemptResponse` | `AttemptEndpointTests` (funcionais por HTTP): campos do contrato, as duas estruturas iguais, o grupo ignorado no corpo, `400`, `401`, `403`, `404`, `415` |
 | Ciclo completo (errar → cartão → acertar até dominar → dependente liberado), RNF-RSP-01, RNF-RSP-04 | #88 | `AttemptEndpointTests.Attempt_TheWholeCycle_MastersTheTopicAndUnlocksTheNext` e `Attempt_RespondsWithinTwoSeconds`, por HTTP contra o PostgreSQL real |
-| RF-RSP-07 | #91 (a fazer) | Funcional: `lesson.status` na resposta |
+| RF-RSP-07 | #91: `LessonProgressReads`, o `SubmitAttemptHandler` e o campo `lesson` de `AttemptResponse` | `SubmitAttemptHandlerTests` (a lição concluída pela última resposta, o erro que não desfaz, 1 de 2); `SubmitAttemptFlowTests`; `AttemptEndpointTests.Attempt_ReturnsTheLessonStateWithTheNewAnswer` |
 | RN-RSP-14 | ADR-005 | — |
 | Contrato do endpoint | #82 (PR #90) | Revisão do `docs/api.md` |
 

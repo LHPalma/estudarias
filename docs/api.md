@@ -64,6 +64,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "mastered",
       "score": 86.4,
       "prerequisites": [],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000001", "rel": "topic", "method": "GET" }]
     },
     {
@@ -73,6 +75,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "available",
       "score": 42.0,
       "prerequisites": ["0192f0c4-0001-7000-8000-000000000001"],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000002", "rel": "topic", "method": "GET" }]
     },
     {
@@ -82,6 +86,8 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
       "status": "locked",
       "score": null,
       "prerequisites": ["0192f0c4-0001-7000-8000-000000000002"],
+      "completedLessons": 0,
+      "totalLessons": 2,
       "links": [{ "href": ".../topics/0192f0c4-0001-7000-8000-000000000003", "rel": "topic", "method": "GET" }]
     }
   ],
@@ -94,6 +100,7 @@ A trilha do aluno: os tópicos em ordem de pré-requisito, com o status e a nota
 
 - `status`: `locked`, `available` ou `mastered`. Um tópico liberado nunca volta a `locked`.
 - `score`: `null` enquanto o aluno não respondeu nada no tópico.
+- `completedLessons` e `totalLessons`: quantas lições do tópico o aluno concluiu, de quantas (veja o estado da lição, no tópico). Concluir as lições **não** domina o tópico: quem libera a trilha é a nota.
 - `dueReviews`: cartões com revisão vencida, para o aviso "N revisões para hoje".
 - **Links:** o `self` da trilha, o `topic` de cada item e o `reviews`, que leva às revisões do dia.
 - A nota usa as 10 respostas mais recentes do aluno no tópico. A trilha de um aluno que ainda não tem a raiz liberada a libera antes de responder (idempotente).
@@ -119,6 +126,9 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
       "id": "0192f0c4-0003-7000-8000-000000000001",
       "order": 1,
       "title": "Soma de frações com denominadores diferentes",
+      "status": "inProgress",
+      "completedExercises": 1,
+      "totalExercises": 3,
       "links": [{ "href": ".../lessons/0192f0c4-0003-7000-8000-000000000001", "rel": "lesson", "method": "GET" }]
     }
   ],
@@ -131,7 +141,13 @@ O tópico, suas lições e o que falta para dominá-lo. Um tópico bloqueado tam
 
 - Dominar o tópico exige `score >= masteryThreshold` **e** `attemptCount >= minAttempts`.
 - `attemptCount` é o total de tentativas do aluno no tópico (todas, e não só as da janela da nota); `score` usa as 10 mais recentes.
-- `lessons` vêm por `order`, sem o conteúdo (que só sai em `GET /lessons/{id}`). O campo `status` de cada lição, com `completedExercises` e `totalExercises`, entra com a #91.
+- `lessons` vêm por `order`, sem o conteúdo (que só sai em `GET /lessons/{id}`). 
+- **Estado da lição** (`status`, `completedExercises`, `totalExercises`), derivado das tentativas do aluno nos exercícios da lição, sem estado novo:
+  - `notStarted`: nenhuma tentativa em nenhum exercício da lição;
+  - `inProgress`: pelo menos uma tentativa, mas ainda há exercício que o aluno nunca acertou;
+  - `completed`: o aluno acertou **cada** exercício da lição pelo menos uma vez, em qualquer tentativa.
+  - `completedExercises` conta os exercícios acertados pelo menos uma vez (cada um uma vez só). Errar depois um exercício já acertado **não** desfaz a conclusão. Uma lição sem exercícios é `notStarted`, 0 de 0, e nunca `completed`. Se a carga do conteúdo acrescentar um exercício a uma lição concluída, ela volta a `inProgress` até o aluno acertá-lo.
+  - Concluir a lição não domina o tópico (e o tópico pode ser dominado antes de todas as lições estarem concluídas). Os dois grupos experimentais veem o mesmo estado.
 - `unlocks`: os tópicos que têm este como pré-requisito.
 - Erros: `404 trail.topic.notFound`.
 
@@ -202,6 +218,7 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
     }
   },
   "topic": { "id": "0192f0c4-0001-7000-8000-000000000002", "status": "available", "score": 38.5, "attemptCount": 4 },
+  "lesson": { "id": "0192f0c4-0003-7000-8000-000000000001", "status": "inProgress", "completedExercises": 1, "totalExercises": 3 },
   "unlockedTopics": [],
   "flashcard": { "id": "0192f0c4-000d-7000-8000-000000000002", "nextReviewAt": "2026-11-17T13:00:00Z" },
   "links": [
@@ -215,7 +232,7 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 - `unlockedTopics`: `[{ "id", "name" }]` dos tópicos liberados por esta resposta, para o aviso de desbloqueio. Vazio na maioria das respostas.
 - `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, o aluno já tem o cartão desse tipo de erro, ou o conteúdo não tem flashcard para ele). O cartão nasce **nos dois grupos** (ADR-005). `id` é o id do cartão do aluno, o que `POST /reviews/{id}` usa.
 - O aluno e o grupo experimental são os do token: um `experimentalGroup` ou `studentId` no corpo é ignorado.
-- `links`: o `topic` (para a tela voltar ao tópico com a nota nova) e o `reviews` (para a tela ir às revisões do dia). O campo `lesson` (o estado da lição) entra com a #91.
+- `links`: o `topic` (para a tela voltar ao tópico com a nota nova) e o `reviews` (para a tela ir às revisões do dia). - `lesson`: a lição do exercício com o estado **já com esta resposta** (`notStarted`, `inProgress` ou `completed`, e os exercícios acertados, de quantos), para a tela de fim de lição mostrar "Lição concluída" só quando for verdade.
 - Erros: `404 trail.exercise.notFound`; `400 answer.alternative.notInExercise`; `400 attempt.responseTime.invalid`; `403 student.topic.locked`.
 
 ## Revisões do dia — `GET /reviews/due`
