@@ -15,8 +15,12 @@ namespace Estudarias.Api.Controllers;
 [ApiController]
 [Route("topics")]
 [Produces("application/json")]
-public sealed class TopicController(ICurrentUser currentUser, ITopicReads topics) : ControllerBase
+public sealed class TopicController(
+    ICurrentUser currentUser, ITopicReads topics, ITopicAttemptsReads topicAttempts) : ControllerBase
 {
+    /// <summary>O nome da rota do histórico de respostas: é por ele que o link <c>attempts</c> do tópico chega aqui.</summary>
+    public const string GetTopicAttemptsRoute = "GetTopicAttempts";
+
     /// <summary>O nome da rota do tópico: é por ele que os links (os da trilha e os da lição) chegam aqui.</summary>
     public const string GetTopicRoute = "GetTopic";
 
@@ -39,12 +43,42 @@ public sealed class TopicController(ICurrentUser currentUser, ITopicReads topics
             ? []
             : [Url.LinkTo(LinkRelations.Lesson, HttpMethods.Get, LessonController.GetLessonRoute, new { lessonId = lesson.Id })];
 
-        return Ok(TopicResponse.From(
-            topic,
-            LessonLinks,
+        var links = new List<Link>
+        {
+            Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTopicRoute, new { topicId }),
+            Url.LinkTo(LinkRelations.Trail, HttpMethods.Get, TrailController.GetTrailRoute),
+        };
+
+        // O histórico de respostas só existe para quem pode praticar o tópico: o bloqueado responde 403 (RN-TRL-09).
+        if (topic.Status != TopicStatus.Locked)
+        {
+            links.Add(Url.LinkTo(LinkRelations.Attempts, HttpMethods.Get, GetTopicAttemptsRoute, new { topicId }));
+        }
+
+        return Ok(TopicResponse.From(topic, LessonLinks, links));
+    }
+
+    /// <summary>
+    /// As respostas do aluno no tópico que entram na nota (as 10 mais recentes), da mais recente para a mais antiga: o histórico que
+    /// explica por que a nota subiu ou caiu. Um tópico liberado sem respostas devolve a lista vazia.
+    /// </summary>
+    /// <remarks>Um tópico bloqueado responde 403 (<c>student.topic.locked</c>): o link <c>attempts</c> do tópico só existe quando ele está liberado.</remarks>
+    [HttpGet("{topicId:guid}/attempts", Name = GetTopicAttemptsRoute)]
+    [ProducesResponseType<TopicAttemptsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> GetAttempts(Guid topicId, CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId ?? throw IdentityErrors.InvalidSession();
+
+        var attempts = await topicAttempts.FindAsync(userId, topicId, cancellationToken);
+
+        return Ok(TopicAttemptsResponse.From(
+            attempts,
             [
-                Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTopicRoute, new { topicId }),
-                Url.LinkTo(LinkRelations.Trail, HttpMethods.Get, TrailController.GetTrailRoute),
+                Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTopicAttemptsRoute, new { topicId }),
+                Url.LinkTo(LinkRelations.Topic, HttpMethods.Get, GetTopicRoute, new { topicId }),
             ]));
     }
 }
