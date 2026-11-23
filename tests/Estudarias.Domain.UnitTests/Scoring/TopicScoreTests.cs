@@ -1,4 +1,5 @@
 using Estudarias.Domain.Exercises;
+using Estudarias.Domain.Mastery;
 using Estudarias.Domain.Scoring;
 
 namespace Estudarias.Domain.UnitTests.Scoring;
@@ -128,5 +129,60 @@ public class TopicScoreTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => TopicScore.Compute(null!));
+    }
+
+    [Fact(DisplayName = "Sem respostas, a nota exibida é 0,0")]
+    public void Display_WithoutAnswers_IsZero()
+    {
+        // Act
+        var score = TopicScore.Compute([]);
+
+        // Assert
+        Assert.Equal(0.0m, score.Display);
+    }
+
+    [Fact(DisplayName = "Só acertos exibe 100,0")]
+    public void Display_WithOnlyRightAnswers_Is100()
+    {
+        // Act
+        var score = TopicScore.Compute([Right(Difficulty.Medium), Right(Difficulty.Hard)]);
+
+        // Assert
+        Assert.Equal(100.0m, score.Display);
+    }
+
+    [Fact(DisplayName = "A nota exibida tem uma casa e é arredondada para baixo, não para o mais próximo")]
+    public void Display_RoundsDownToOneDecimal()
+    {
+        // Arrange: errou a mais recente e acertou a anterior, as duas fáceis: 100 × 0,9 / 1,9 = 47,3684...
+        var score = TopicScore.Compute([Wrong(Difficulty.Easy), Right(Difficulty.Easy)]);
+
+        // Act
+        var display = score.Display;
+
+        // Assert
+        Assert.Equal(47.3m, display);
+        Assert.Equal(47.4m, Math.Round(score.Value, 1));
+    }
+
+    [Fact(DisplayName = "A nota exibida nunca mostra a meta de domínio sem a nota exata tê-la atingido")]
+    public void Display_JustBelowTheThreshold_NeverShowsTheThreshold()
+    {
+        // Arrange: a nota exata é 69,9500...: arredondar para o mais próximo mostraria 70,0, a meta.
+        var score = TopicScore.Compute(
+        [
+            Right(Difficulty.Hard),
+            Right(Difficulty.Easy),
+            Right(Difficulty.Hard),
+            Wrong(Difficulty.Medium),
+            Right(Difficulty.Easy),
+            Wrong(Difficulty.Hard),
+            Right(Difficulty.Easy),
+        ]);
+
+        // Act & Assert
+        Assert.True(score.Value < TopicMastery.Threshold);
+        Assert.Equal(70.0m, Math.Round(score.Value, 1));
+        Assert.Equal(69.9m, score.Display);
     }
 }

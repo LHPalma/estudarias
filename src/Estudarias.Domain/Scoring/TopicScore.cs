@@ -15,6 +15,13 @@ public readonly record struct TopicScore
 
     public decimal Value { get; }
 
+    /// <summary>
+    /// A nota como o aluno a vê: uma casa decimal, <b>arredondada para baixo</b>. Arredondar para o mais próximo faria 69,9997 virar
+    /// 70,0, e a tela mostraria a meta de domínio (70) atingida sem estar. Só a exibição trunca: a regra de domínio compara o
+    /// <see cref="Value"/> exato.
+    /// </summary>
+    public decimal Display => Math.Floor(Value * 10m) / 10m;
+
     public static TopicScore Zero => default;
 
     /// <param name="mostRecentFirst">As respostas do aluno no tópico, da mais recente para a mais antiga.</param>
