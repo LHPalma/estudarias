@@ -89,7 +89,6 @@ Uma decisão em aberto não trava o SRS: ele escreve o requisito pela **proposta
 | Id | Pendência | Onde | Decidir antes de |
 |---|---|---|---|
 | `PEND-RSP-02` | Tipo de erro sem flashcard no conteúdo | [Resposta e Diagnóstico](SRS%20-%20M%C3%B3dulo%20de%20Resposta%20e%20Diagn%C3%B3stico.md) | #85 e #88 |
-| `PEND-TRL-01` | O que conta como `attemptCount` no domínio: todas as tentativas no tópico ou só a janela de 10 | [Trilha e Progresso](SRS%20-%20M%C3%B3dulo%20de%20Trilha%20e%20Progresso.md) | #87 e #88 |
 | `PEND-REV-02` | Revisões simultâneas do mesmo cartão | [Revisão Espaçada](SRS%20-%20M%C3%B3dulo%20de%20Revis%C3%A3o%20Espa%C3%A7ada.md) | #89 |
 
 ## Relação com os outros documentos

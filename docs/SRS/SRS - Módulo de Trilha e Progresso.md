@@ -1,8 +1,8 @@
 # SRS — Módulo de Trilha e Progresso (Trilha, Tópico, Lição, Nota, Domínio e Desbloqueio)
 
-**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). A persistência do progresso (#84) está implementada (tabela `student_topic`, Seção 8.2). O `GET /trail` (#86) e o `GET /topics/{id}` e o `GET /lessons/{id}` (#87) estão implementados, com a liberação inicial, o CORS, o 403 e o 404; o link `reviews` da trilha e o `answer` de cada exercício entram com os endpoints deles (#89 e #88). Faltam a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a nota do tópico (#70) e o domínio e desbloqueio (#71, PR #77), além do `Student` com o progresso por tópico (#14, PR #15). O contrato das leituras está em `docs/api.md` (#82, PR #90). A persistência do progresso (#84) está implementada (tabela `student_topic`, Seção 8.2). O `GET /trail` (#86) e o `GET /topics/{id}` e o `GET /lessons/{id}` (#87) estão implementados, com a liberação inicial, o CORS, o 403 e o 404; o link `reviews` da trilha entra com o endpoint dele (#89), e o `answer` de cada exercício entrou com a #88. Faltam a regra e o estado da lição (#91) e o histórico de respostas (#92). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
-**Pendência de decisão:** PEND-TRL-01 (Seção 7.5).
+**Decisões:** o `attemptCount` é o total de tentativas do aluno no tópico (ex-PEND-TRL-01, Seção 7.5).
 
 ---
 
@@ -154,7 +154,7 @@ Devolve: status, nota, `attemptCount`, meta e mínimo de tentativas, `prerequisi
 
 **Endpoint:** `GET /lessons/{lessonId}` (#87). **Porta de leitura:** `ILessonReads`.
 
-Devolve o conteúdo e os exercícios da lição, com as alternativas na ordem do conteúdo e **sem nenhum campo que revele a correta** (RN-TRL-11). Cada exercício traz o link `answer`, que entra com o `POST /exercises/{id}/attempts` (#88): um link só existe quando a rota dele existe, então até lá o `links` do exercício vem vazio. Os exercícios vêm pela posição gravada (#104). Lição de tópico bloqueado responde `403 student.topic.locked` (FA-TRL-05).
+Devolve o conteúdo e os exercícios da lição, com as alternativas na ordem do conteúdo e **sem nenhum campo que revele a correta** (RN-TRL-11). Cada exercício traz o link `answer` (`POST /exercises/{id}/attempts`, #88). Os exercícios vêm pela posição gravada (#104). Lição de tópico bloqueado responde `403 student.topic.locked` (FA-TRL-05).
 
 ### RF-TRL-05: Nota do tópico
 
@@ -381,11 +381,11 @@ Uma variável nova: `Cors__AllowedOrigins__N`, as origens liberadas fora de Deve
 - "Refazer" um tópico dominado ou zerar o progresso.
 - Exportação dos dados do experimento (F07).
 
-### 7.5 Decisões pendentes
+### 7.5 Decisões
 
-| Id | Pendência | Proposta atual |
-|---|---|---|
-| **PEND-TRL-01** | O que conta como `attemptCount` no domínio: **todas** as tentativas do aluno no tópico ou só as da janela de 10. O `TopicMastery.IsMastered` recebe o número, mas não diz de onde ele vem. | **A confirmar na #88.** O contrato (`docs/api.md`) trata `attemptCount` como o total no tópico (exemplos com 3 e 4). A leitura do tópico (#87) **já usa o total** de tentativas do aluno no tópico (`StudentReads.AnswersOfTopicAsync`), e o caso de uso de resposta (#88) precisa usar o mesmo critério. |
+A PEND-TRL-01 foi decidida: o `attemptCount` do domínio é o **total** de tentativas do aluno no tópico, e não só as da janela de 10 da nota. A leitura do tópico (#87) e o caso de uso de resposta (#88) usam o mesmo critério (`AnswerReads.OfTopicAsync`, mais a resposta que chega).
+
+Não há decisões pendentes neste módulo.
 
 ---
 

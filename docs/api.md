@@ -171,7 +171,7 @@ O conteúdo da lição e os exercícios dela, **sem o gabarito**: nenhuma altern
 - `difficulty`: `easy`, `medium` ou `hard`.
 - Exercícios e alternativas vêm na ordem do conteúdo, que é gravada (`position`, #104); o `id` não serve de ordem.
 - Nenhum campo, em nenhum nível, diz qual alternativa é a correta, nem o tipo de erro de cada errada: a consulta nem lê essas colunas.
-- O link `answer` de cada exercício entra com o `POST /exercises/{id}/attempts` (#88), então até lá o `links` do exercício vem vazio.
+- Cada exercício traz o link `answer` (`POST /exercises/{id}/attempts`).
 - Erros: `404 trail.lesson.notFound`; `403 student.topic.locked` se o tópico da lição está bloqueado.
 
 ## Responder exercício — `POST /exercises/{exerciseId}/attempts`
@@ -186,7 +186,7 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 
 - `responseSeconds`: opcional, tempo até responder (inteiro, 0 ou mais). Vai para a análise do experimento.
 
-**Resposta `201 Created`** (`Location` aponta para a tentativa)
+**Resposta `201 Created`** (sem `Location`: a tentativa não tem um recurso próprio para ler, e uma rota inexistente não gera link, ADR-004)
 
 ```json
 {
@@ -213,7 +213,9 @@ Registra a resposta e devolve, de uma vez, tudo que a tela de diagnóstico preci
 
 - `feedback.kind`: `correct`, `incorrect` ou `incorrectWithDiagnosis`. O grupo **diagnóstico** recebe `incorrectWithDiagnosis`, com `errorType`; o grupo **controle** recebe `incorrect`, com `errorType: null`. As mensagens ("Resposta correta", "Resposta incorreta") são do app.
 - `unlockedTopics`: `[{ "id", "name" }]` dos tópicos liberados por esta resposta, para o aviso de desbloqueio. Vazio na maioria das respostas.
-- `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, ou o aluno já tem o cartão desse tipo de erro).
+- `flashcard`: o cartão de revisão criado por este erro, ou `null` (acerto, o aluno já tem o cartão desse tipo de erro, ou o conteúdo não tem flashcard para ele). O cartão nasce **nos dois grupos** (ADR-005). `id` é o id do cartão do aluno, o que `POST /reviews/{id}` usa.
+- O aluno e o grupo experimental são os do token: um `experimentalGroup` ou `studentId` no corpo é ignorado.
+- `links`: o `topic` (para a tela voltar ao tópico com a nota nova). O `reviews` entra com o `GET /reviews/due` (#89), e o campo `lesson` (o estado da lição) com a #91.
 - Erros: `404 trail.exercise.notFound`; `400 answer.alternative.notInExercise`; `400 attempt.responseTime.invalid`; `403 student.topic.locked`.
 
 ## Revisões do dia — `GET /reviews/due`

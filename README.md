@@ -287,3 +287,39 @@ Os `401` são os mesmos do `/me`: sem token, vencido ou inválido (sem `code`), 
 | `403` | a lição de um tópico bloqueado | `student.topic.locked` |
 | `404` | tópico ou lição que não existe | `trail.topic.notFound`, `trail.lesson.notFound` |
 
+## API de responder um exercício
+
+`POST /exercises/{id}/attempts` registra a resposta do aluno logado e devolve, de uma vez, o que a tela do retorno precisa. É o ciclo do produto numa chamada: **errar, diagnosticar, flashcard, nota, desbloqueio**. O contrato completo está em [`docs/api.md`](docs/api.md#responder-exercício--post-exercisesexerciseidattempts).
+
+```json
+// POST /exercises/0192f0c4-.../attempts
+{ "alternativeId": "0192f0c4-...", "responseSeconds": 48 }
+```
+
+```json
+// 201 Created
+{
+  "attemptId": "0192f0c4-...",
+  "isCorrect": false,
+  "correctAlternativeId": "0192f0c4-...",
+  "feedback": { "kind": "incorrectWithDiagnosis", "correctAnswer": "5/6", "errorType": { "name": "Soma direta de numeradores e denominadores", "feedback": "..." } },
+  "topic": { "id": "0192f0c4-...", "status": "available", "score": 38.5, "attemptCount": 4 },
+  "unlockedTopics": [],
+  "flashcard": { "id": "0192f0c4-...", "nextReviewAt": "2026-11-17T13:00:00+00:00" },
+  "links": [{ "href": "http://localhost:5007/topics/0192f0c4-...", "rel": "topic", "method": "GET" }]
+}
+```
+
+- O retorno depende do grupo, e só dele: o grupo **diagnóstico** recebe `incorrectWithDiagnosis` com o tipo de erro; o **controle** recebe `incorrect` com `errorType: null`. A estrutura é a mesma. O grupo vem do aluno gravado, nunca do corpo.
+- **O cartão nasce nos dois grupos** ([ADR-005](docs/adr/0005-flashcard-in-both-groups.md)): errar cria o cartão do tipo de erro, uma vez por aluno e por tipo. O controle vê o diagnóstico ao revisar, o que é uma limitação declarada da análise.
+- A nota já inclui a resposta que acabou de chegar (as 10 mais recentes), e o domínio e o desbloqueio são avaliados na mesma chamada. Tentativa, progresso e cartão são gravados juntos.
+- Responde `201` sem `Location`, porque a tentativa não tem um recurso próprio para ler.
+
+| Status | Quando | `code` |
+|---|---|---|
+| `400` | alternativa que não é do exercício (ou ausente); tempo de resposta negativo | `answer.alternative.notInExercise`, `attempt.responseTime.invalid` |
+| `401` | sem token, vencido ou inválido; conta que não existe ou foi desabilitada | sem `code`; `identity.session.invalid` |
+| `403` | o tópico do exercício está bloqueado | `student.topic.locked` |
+| `404` | o exercício não existe | `trail.exercise.notFound` |
+| `415` | corpo que não é JSON | sem `code` |
+

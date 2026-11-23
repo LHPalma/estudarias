@@ -1,8 +1,8 @@
 # SRS — Módulo de Resposta e Diagnóstico (Responder Exercício, Diagnosticar o Erro e Retorno por Grupo)
 
-**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a tentativa (`Attempt`, #30, PR #68) e o diagnóstico da resposta com o retorno por grupo experimental (#72, PR #80). A persistência da tentativa (#84) está implementada (tabela `attempt`, Seção 8.2). Faltam o caso de uso e o endpoint `POST /exercises/{id}/attempts` (#88). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
+**Status:** Em implementação. As regras puras já estão no Domain e na `main`: a tentativa (`Attempt`, #30, PR #68) e o diagnóstico da resposta com o retorno por grupo experimental (#72, PR #80). A persistência da tentativa (#84) está implementada (tabela `attempt`, Seção 8.2). O caso de uso `SubmitAttempt` e o endpoint `POST /exercises/{id}/attempts` estão implementados (#88). O contrato está em `docs/api.md` (#82, PR #90). Os requisitos abaixo valem para o módulo completo; a Seção 9 diz o que já existe.
 
-**Decisões:** o cartão nos dois grupos está decidido (ADR-005, ex-PEND-RSP-01). Resta a PEND-RSP-02 (Seção 7.5).
+**Decisões:** o cartão nos dois grupos está decidido (ADR-005, ex-PEND-RSP-01). Resta a PEND-RSP-02 (Seção 7.5): a #88 responde `flashcard: null` quando o conteúdo não tem flashcard para o tipo de erro, e o validador do seed ainda não exige um por tipo (o conteúdo de hoje tem).
 
 ---
 
@@ -170,7 +170,7 @@ A resposta ganha `lesson` com o `status` novo da lição do exercício, para a t
 
 ### RF-RSP-08: Resposta da API
 
-`201 Created`, com o cabeçalho `Location` apontando para a tentativa, e o corpo: `attemptId`, `isCorrect`, `correctAlternativeId`, `feedback`, `topic`, `unlockedTopics`, `flashcard`, `lesson` e `links` (`topic` e `reviews`). Os campos e os exemplos estão em `docs/api.md`.
+`201 Created` e o corpo (sem o cabeçalho `Location`: a tentativa não tem um recurso próprio para ler, e o `Url.LinkTo` recusa uma rota que não existe, ADR-004): `attemptId`, `isCorrect`, `correctAlternativeId`, `feedback`, `topic`, `unlockedTopics`, `flashcard`, `lesson` e `links` (`topic` hoje; o `reviews` entra com o `GET /reviews/due`, #89). Os campos e os exemplos estão em `docs/api.md`.
 
 ---
 
@@ -278,7 +278,7 @@ O cartão já existe: nenhum cartão novo, nenhum reagendamento, `flashcard: nul
 
 ### FA-RSP-10: Duas respostas simultâneas do mesmo aluno que erram o mesmo tipo de erro
 
-As duas tentativas são gravadas, mas só **um** cartão pode existir: o índice único `(student_id, flashcard_id)` recusa o segundo. O comportamento esperado é a segunda resposta tratar o cartão como já existente (`flashcard: null`), **sem perder a tentativa**. A forma exata é definida na #88.
+As duas tentativas são gravadas, mas só **um** cartão pode existir: o índice único `(student_id, flashcard_id)` recusa o segundo. O comportamento esperado é a segunda resposta tratar o cartão como já existente (`flashcard: null`), **sem perder a tentativa**. Definido na #88: a segunda resposta descarta o cartão dela (`IStudentFlashcardRepository.Discard`), grava o resto e responde `flashcard: null`; o cartão que vale é o da outra requisição. Uma violação de outro índice único (por exemplo, duas respostas do mesmo aluno que dominam o mesmo tópico juntas, que tentam liberar o mesmo dependente) **não** é tratada e vira erro do servidor, e a tentativa dessa resposta não é gravada: o risco é pequeno (um aluno, um aparelho) e fica registrado aqui.
 
 ### FA-RSP-11: Requisição sem token
 
@@ -405,9 +405,9 @@ Restrições como estão na migration `AddProgress`: `ck_attempt_response_second
 | RF-RSP-02, RN-RSP-02 | Domain: #72 (PR #80) | `AnswerDiagnosticianTests` |
 | RF-RSP-03, RN-RSP-05, RN-RSP-06, RN-RSP-07 | Domain: #72 (PR #80) | `AnswerDiagnosticianTests` |
 | Persistência da tentativa, RN-RSP-04, RN-RSP-03 (`CHECK`) | #84: `AttemptConfiguration`, `AttemptRepository`, migration `AddProgress` | `AttemptRepositoryTests`: tentativa vai e volta; várias tentativas no mesmo exercício; `CHECK` e chave estrangeira recusadas pelo banco; exercício respondido não pode ser apagado |
-| RF-RSP-01, RF-RSP-05, RF-RSP-06, RN-RSP-01, RN-RSP-08 a RN-RSP-13, FA-RSP-01 a FA-RSP-07 | #88 (a fazer) | Unidade do caso de uso: acerto, erro com e sem cartão novo, desbloqueio, tópico bloqueado, alternativa de outro exercício, os dois grupos |
-| RF-RSP-08, FA-RSP-08 a FA-RSP-11, RNF-RSP-05 | #88 (a fazer) | Funcionais por HTTP |
-| Ciclo completo (errar → cartão → acertar até dominar → dependente liberado), RNF-RSP-01, RNF-RSP-04 | #88 (a fazer) | Funcional por HTTP contra o PostgreSQL real, com a medição do tempo |
+| RF-RSP-01, RF-RSP-05, RF-RSP-06, RN-RSP-01, RN-RSP-08 a RN-RSP-13, FA-RSP-01 a FA-RSP-07, FA-RSP-10 | #88: `SubmitAttemptHandler`, `IExerciseRepository`, `IErrorTypeRepository`, `IFlashcardRepository`, `IAnswerReads`, `IStudentFlashcardRepository.Discard`, o `Sm2Scheduler` no composition root | `SubmitAttemptHandlerTests` (acerto, erro nos dois grupos, cartão repetido, sem flashcard no conteúdo, nota com a nova resposta e janela de 10, domínio e desbloqueio, tópico bloqueado, alternativa de outro exercício, tempo negativo, a corrida do cartão); `SubmitAttemptFlowTests` (PostgreSQL: o que fica gravado, a corrida de verdade, o nome do índice) |
+| RF-RSP-08, FA-RSP-08 a FA-RSP-11, RNF-RSP-02, RNF-RSP-05 | #88: `AttemptController`, `AttemptRequest`, `AttemptResponse` | `AttemptEndpointTests` (funcionais por HTTP): campos do contrato, as duas estruturas iguais, o grupo ignorado no corpo, `400`, `401`, `403`, `404`, `415` |
+| Ciclo completo (errar → cartão → acertar até dominar → dependente liberado), RNF-RSP-01, RNF-RSP-04 | #88 | `AttemptEndpointTests.Attempt_TheWholeCycle_MastersTheTopicAndUnlocksTheNext` e `Attempt_RespondsWithinTwoSeconds`, por HTTP contra o PostgreSQL real |
 | RF-RSP-07 | #91 (a fazer) | Funcional: `lesson.status` na resposta |
 | RN-RSP-14 | ADR-005 | — |
 | Contrato do endpoint | #82 (PR #90) | Revisão do `docs/api.md` |
