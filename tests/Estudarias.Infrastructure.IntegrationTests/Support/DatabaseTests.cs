@@ -1,6 +1,9 @@
 using Estudarias.Application;
 using Estudarias.Application.Attempts;
 using Estudarias.Application.Common;
+using Estudarias.Application.ErrorTypes;
+using Estudarias.Application.Exercises;
+using Estudarias.Application.Flashcards;
 using Estudarias.Application.StudentFlashcards;
 using Estudarias.Application.Identity;
 using Estudarias.Application.Students;
@@ -172,6 +175,12 @@ internal sealed class TestScope(IServiceScope scope) : IDisposable
     public IStudentRepository Students => scope.ServiceProvider.GetRequiredService<IStudentRepository>();
 
     public ITopicRepository Topics => scope.ServiceProvider.GetRequiredService<ITopicRepository>();
+
+    public IExerciseRepository Exercises => scope.ServiceProvider.GetRequiredService<IExerciseRepository>();
+
+    public IErrorTypeRepository ErrorTypes => scope.ServiceProvider.GetRequiredService<IErrorTypeRepository>();
+
+    public IFlashcardRepository Flashcards => scope.ServiceProvider.GetRequiredService<IFlashcardRepository>();
 
     public IAttemptRepository Attempts => scope.ServiceProvider.GetRequiredService<IAttemptRepository>();
 
