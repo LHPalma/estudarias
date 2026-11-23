@@ -1,5 +1,7 @@
 using Estudarias.Application.Attempts;
 using Estudarias.Application.Identity;
+using Estudarias.Application.Reviews;
+using Estudarias.Application.Reviews.Queries;
 using Estudarias.Application.Students.Queries;
 using Estudarias.Application.Trail;
 using Estudarias.Application.Trail.Queries;
@@ -25,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<LogoutHandler>();
         services.AddScoped<UnlockInitialTopicsHandler>();
         services.AddScoped<SubmitAttemptHandler>();
+        services.AddScoped<ReviewFlashcardHandler>();
+        services.AddSingleton<IReviewSchedulers, ReviewSchedulers>();
 
         // As leituras não passam por caso de uso: a API chama a porta de leitura direto.
         services.AddScoped<IProfileReads, ProfileReads>();
@@ -32,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ITopicReads, TopicReads>();
         services.AddScoped<ILessonReads, LessonReads>();
         services.AddScoped<IAnswerReads, AnswerReads>();
+        services.AddScoped<IReviewReads, ReviewReads>();
 
         return services;
     }
