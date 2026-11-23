@@ -1,6 +1,5 @@
 using Estudarias.Api.Links;
 using Estudarias.Application.Trail.Queries;
-using Estudarias.Domain.Students;
 
 namespace Estudarias.Api.Contracts.Trail;
 
@@ -18,16 +17,7 @@ public sealed record TrailTopicResponse(
     IReadOnlyList<Link> Links)
 {
     public static TrailTopicResponse From(TrailTopicView topic, IReadOnlyList<Link> links) =>
-        new(topic.Id, topic.Slug, topic.Name, StatusText(topic.Status), topic.Score, topic.Prerequisites, links);
-
-    // Explícito, e não o ToString() do enum: o texto é contrato com o app, e renomear um membro não pode mudá-lo sem querer.
-    private static string StatusText(TopicStatus status) => status switch
-    {
-        TopicStatus.Locked => "locked",
-        TopicStatus.Available => "available",
-        TopicStatus.Mastered => "mastered",
-        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Topic status is not valid."),
-    };
+        new(topic.Id, topic.Slug, topic.Name, TopicStatusText.Of(topic.Status), topic.Score, topic.Prerequisites, links);
 }
 
 /// <summary>
@@ -41,12 +31,14 @@ public sealed record TrailResponse(
     IReadOnlyList<TrailTopicResponse> Topics,
     IReadOnlyList<Link> Links)
 {
-    public static TrailResponse From(TrailView trail, IReadOnlyList<Link> links) =>
+    /// <param name="topicLinks">Os links de cada item da trilha, pelo tópico dele: o controller os monta, que conhece as rotas.</param>
+    public static TrailResponse From(
+        TrailView trail, Func<TrailTopicView, IReadOnlyList<Link>> topicLinks, IReadOnlyList<Link> links) =>
         new(
             trail.MasteryThreshold,
             trail.MasteredTopics,
             trail.TotalTopics,
             trail.DueReviews,
-            [.. trail.Topics.Select(topic => TrailTopicResponse.From(topic, []))],
+            [.. trail.Topics.Select(topic => TrailTopicResponse.From(topic, topicLinks(topic)))],
             links);
 }

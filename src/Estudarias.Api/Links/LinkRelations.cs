@@ -9,6 +9,12 @@ public static class LinkRelations
     /// <summary>O próprio recurso. Todo recurso tem, sempre.</summary>
     public const string Self = "self";
 
+    /// <summary>Um tópico (<c>GET /topics/{id}</c>): o item da trilha e a lição apontam para ele.</summary>
+    public const string Topic = "topic";
+
+    /// <summary>Uma lição (<c>GET /lessons/{id}</c>): só existe quando o tópico dela não está bloqueado.</summary>
+    public const string Lesson = "lesson";
+
     /// <summary>A trilha do aluno (<c>GET /trail</c>), a tela inicial do app depois do login.</summary>
     public const string Trail = "trail";
 }

@@ -39,10 +39,13 @@ public sealed class TrailController(
         await unlockInitialTopics.Handle(userId, cancellationToken);
         var trail = await trails.FindAsync(userId, cancellationToken) ?? throw IdentityErrors.InvalidSession();
 
-        return Ok(TrailResponse.From(trail, BuildLinks()));
+        return Ok(TrailResponse.From(
+            trail,
+            topic => [Url.LinkTo(LinkRelations.Topic, HttpMethods.Get, TopicController.GetTopicRoute, new { topicId = topic.Id })],
+            BuildLinks()));
     }
 
-    // Os links topic (por item) e reviews entram com o GET /topics/{id} (#87) e o GET /reviews/due (#89): um link só existe
-    // quando a rota dele existe, e o Url.LinkTo recusa uma rota inexistente (ADR-004).
+    // O link reviews entra com o GET /reviews/due (#89): um link só existe quando a rota dele existe, e o Url.LinkTo recusa uma
+    // rota inexistente (ADR-004).
     private List<Link> BuildLinks() => [Url.LinkTo(LinkRelations.Self, HttpMethods.Get, GetTrailRoute)];
 }
