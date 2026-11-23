@@ -33,7 +33,7 @@ public sealed class TopicReads(IApplicationDbContext db) : ITopicReads
         var topic = topics.SingleOrDefault(candidate => candidate.Id == topicId) ?? throw TrailErrors.NoSuchTopic();
 
         var statuses = await StudentReads.StatusesAsync(db, studentId, cancellationToken);
-        var (latest, attemptCount) = await StudentReads.AnswersOfTopicAsync(db, studentId, topicId, cancellationToken);
+        var (latest, attemptCount) = await new AnswerReads(db).OfTopicAsync(studentId, topicId, cancellationToken);
 
         // Sem o conteúdo (que pode ser longo): o tópico só lista as lições, e o texto sai na leitura da lição.
         var lessons = await db.Lessons

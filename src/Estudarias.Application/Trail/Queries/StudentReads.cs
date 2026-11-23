@@ -13,7 +13,7 @@ namespace Estudarias.Application.Trail.Queries;
 internal static class StudentReads
 {
     /// <summary>Uma resposta já corrigida, com o tópico do exercício (o da lição dele): o que a nota usa, e nada além disso.</summary>
-    private sealed record AnswerRow(Guid TopicId, Difficulty Difficulty, bool IsCorrect);
+    internal sealed record AnswerRow(Guid TopicId, Difficulty Difficulty, bool IsCorrect);
 
     /// <summary>O aluno ligado à conta, ou nulo quando a conta não existe, está desabilitada ou não tem aluno.</summary>
     public static async Task<Guid?> StudentIdOfAsync(IApplicationDbContext db, Guid userId, CancellationToken cancellationToken) =>
@@ -45,7 +45,7 @@ internal static class StudentReads
     /// desempate pelo id (v7, que cresce com o tempo) para duas respostas no mesmo instante saírem sempre na mesma ordem. Só as colunas
     /// que a nota usa; o tópico de um exercício é o da lição dele.
     /// </summary>
-    private static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId, Guid? topicId = null)
+    internal static IQueryable<AnswerRow> Answers(IApplicationDbContext db, Guid studentId, Guid? topicId = null)
     {
         var sources =
             from attempt in db.Attempts
@@ -80,19 +80,4 @@ internal static class StudentReads
             group => (IReadOnlyList<GradedAnswer>)[.. group
                 .Take(TopicScore.Window)
                 .Select(answer => new GradedAnswer(answer.Difficulty, answer.IsCorrect))]);
-
-    /// <summary>
-    /// As respostas do aluno num tópico: a janela da nota (as mais recentes) e o total de tentativas no tópico. O total é de todas as
-    /// tentativas, e não só da janela (PEND-TRL-01): é ele que o domínio compara com o mínimo de tentativas.
-    /// </summary>
-    public static async Task<(IReadOnlyList<GradedAnswer> Latest, int Total)> AnswersOfTopicAsync(
-        IApplicationDbContext db, Guid studentId, Guid topicId, CancellationToken cancellationToken)
-    {
-        var inTopic = Answers(db, studentId, topicId);
-
-        var total = await inTopic.CountAsync(cancellationToken);
-        var latest = await inTopic.Take(TopicScore.Window).ToListAsync(cancellationToken);
-
-        return ([.. latest.Select(answer => new GradedAnswer(answer.Difficulty, answer.IsCorrect))], total);
-    }
 }

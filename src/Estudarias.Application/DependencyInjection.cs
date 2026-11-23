@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ITrailReads, TrailReads>();
         services.AddScoped<ITopicReads, TopicReads>();
         services.AddScoped<ILessonReads, LessonReads>();
+        services.AddScoped<IAnswerReads, AnswerReads>();
 
         return services;
     }

@@ -13,4 +13,6 @@ internal sealed class StudentFlashcardRepository(AppDbContext db) : IStudentFlas
         db.StudentFlashcards.AnyAsync(card => card.StudentId == studentId && card.FlashcardId == flashcardId, cancellationToken);
 
     public void Add(StudentFlashcard card) => db.StudentFlashcards.Add(card);
+
+    public void Discard(StudentFlashcard card) => db.Entry(card).State = EntityState.Detached;
 }
