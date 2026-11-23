@@ -17,6 +17,7 @@ using Estudarias.Domain.ErrorTypes;
 using Estudarias.Domain.Exercises;
 using Estudarias.Domain.Flashcards;
 using Estudarias.Domain.Identity;
+using Estudarias.Domain.Lessons;
 using Estudarias.Domain.Scoring;
 using Estudarias.Domain.StudentFlashcards;
 using Estudarias.Domain.StudentFlashcards.Scheduling;
@@ -41,6 +42,7 @@ public class SubmitAttemptHandlerTests
     private readonly IStudentFlashcardRepository _studentFlashcards = Substitute.For<IStudentFlashcardRepository>();
     private readonly IAttemptRepository _attempts = Substitute.For<IAttemptRepository>();
     private readonly IAnswerReads _answers = Substitute.For<IAnswerReads>();
+    private readonly ILessonProgressReads _lessonProgress = Substitute.For<ILessonProgressReads>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly FakeTimeProvider _clock = new(Start);
 
@@ -82,6 +84,7 @@ public class SubmitAttemptHandlerTests
         _flashcards.FindGeneratedByAsync(_errorType.Id, Arg.Any<CancellationToken>()).Returns(_flashcard);
         _studentFlashcards.ExistsAsync(_student.Id, _flashcard.Id, Arg.Any<CancellationToken>()).Returns(false);
         _answers.OfTopicAsync(_student.Id, _basics.Id, Arg.Any<CancellationToken>()).Returns((Previous(), 0));
+        WithLessonBefore([_exercise.Id], attempted: [], correct: []);
 
         _attempts.When(repository => repository.Add(Arg.Any<Attempt>())).Do(call => _addedAttempts.Add(call.Arg<Attempt>()));
         _studentFlashcards.When(repository => repository.Add(Arg.Any<StudentFlashcard>())).Do(call => _addedCards.Add(call.Arg<StudentFlashcard>()));
@@ -89,7 +92,11 @@ public class SubmitAttemptHandlerTests
 
     private SubmitAttemptHandler Handler() => new(
         _users, _students, _exercises, _topics, _errorTypes, _flashcards, _studentFlashcards, _attempts, _answers,
-        new Sm2Scheduler(), _unitOfWork, _clock);
+        _lessonProgress, new Sm2Scheduler(), _unitOfWork, _clock);
+
+    private void WithLessonBefore(Guid[] exerciseIds, Guid[] attempted, Guid[] correct) =>
+        _lessonProgress.OfLessonAsync(_student.Id, _exercise.LessonId, Arg.Any<CancellationToken>())
+            .Returns(new LessonAnswers(exerciseIds, attempted, correct));
 
     private static IReadOnlyList<GradedAnswer> Previous(params GradedAnswer[] mostRecentFirst) => mostRecentFirst;
 
@@ -159,6 +166,8 @@ public class SubmitAttemptHandlerTests
         _users.FindByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
         _students.FindAsync(control.Id, Arg.Any<CancellationToken>()).Returns(control);
         _answers.OfTopicAsync(control.Id, _basics.Id, Arg.Any<CancellationToken>()).Returns((Previous(), 0));
+        _lessonProgress.OfLessonAsync(control.Id, _exercise.LessonId, Arg.Any<CancellationToken>())
+            .Returns(new LessonAnswers([_exercise.Id], [], []));
         _studentFlashcards.ExistsAsync(control.Id, _flashcard.Id, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
@@ -425,4 +434,78 @@ public class SubmitAttemptHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => AnswerAsync(_correct));
     }
+
+    // ---------- O estado da lição na resposta (#91) ----------
+
+    [Fact(DisplayName = "Acertar o único exercício da lição a conclui: a resposta traz a lição concluída, 1 de 1")]
+    public async Task Handle_TheRightAnswerOnTheOnlyExercise_CompletesTheLesson()
+    {
+        // Act
+        var result = await AnswerAsync(_correct);
+
+        // Assert
+        Assert.Equal(new AttemptLessonResult(_exercise.LessonId, LessonStatus.Completed, 1, 1), result.Lesson);
+    }
+
+    [Fact(DisplayName = "Errar o exercício deixa a lição em andamento, 0 de 1")]
+    public async Task Handle_AWrongAnswer_LeavesTheLessonInProgress()
+    {
+        // Act
+        var result = await AnswerAsync(_wrong);
+
+        // Assert
+        Assert.Equal(new AttemptLessonResult(_exercise.LessonId, LessonStatus.InProgress, 0, 1), result.Lesson);
+    }
+
+    [Fact(DisplayName = "O estado considera a resposta que acabou de chegar: o último exercício que faltava conclui a lição, 2 de 2")]
+    public async Task Handle_TheLastMissingExercise_CompletesTheLesson()
+    {
+        // Arrange: a lição tem dois exercícios, e o outro já foi acertado
+        var other = Guid.CreateVersion7();
+        WithLessonBefore([_exercise.Id, other], attempted: [other], correct: [other]);
+
+        // Act
+        var result = await AnswerAsync(_correct);
+
+        // Assert
+        Assert.Equal((LessonStatus.Completed, 2, 2), (result.Lesson.Status, result.Lesson.CompletedExercises, result.Lesson.TotalExercises));
+    }
+
+    [Fact(DisplayName = "Errar um exercício já acertado não desfaz a conclusão da lição")]
+    public async Task Handle_AWrongAnswerOnAnExerciseAlreadyRight_KeepsTheLessonCompleted()
+    {
+        // Arrange
+        WithLessonBefore([_exercise.Id], attempted: [_exercise.Id], correct: [_exercise.Id]);
+
+        // Act
+        var result = await AnswerAsync(_wrong);
+
+        // Assert
+        Assert.Equal((LessonStatus.Completed, 1, 1), (result.Lesson.Status, result.Lesson.CompletedExercises, result.Lesson.TotalExercises));
+    }
+
+    [Fact(DisplayName = "Acertar um de dois exercícios deixa a lição em andamento, 1 de 2")]
+    public async Task Handle_OneOfTwoExercises_LeavesTheLessonInProgress()
+    {
+        // Arrange
+        WithLessonBefore([_exercise.Id, Guid.CreateVersion7()], attempted: [], correct: []);
+
+        // Act
+        var result = await AnswerAsync(_correct);
+
+        // Assert
+        Assert.Equal((LessonStatus.InProgress, 1, 2), (result.Lesson.Status, result.Lesson.CompletedExercises, result.Lesson.TotalExercises));
+    }
+
+    [Fact(DisplayName = "Concluir a lição não domina o tópico: o status do tópico segue o da nota")]
+    public async Task Handle_CompletingTheLesson_DoesNotMasterTheTopic()
+    {
+        // Act
+        var result = await AnswerAsync(_correct);
+
+        // Assert
+        Assert.Equal(LessonStatus.Completed, result.Lesson.Status);
+        Assert.Equal(TopicStatus.Available, result.Topic.Status);
+    }
 }
+
